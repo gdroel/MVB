@@ -1,0 +1,7 @@
+{
+  "TYPE": "TRANS",
+  "INPUT": [{ "block1": "output1" }],
+  "OUTPUT": [{ "100": "publickey1" }],
+  "SIGNATURE": [{ "type": "sig1" }, { "input": "sig2" }, { "output": "sig3" }],
+  "NUMBER": "f4db1c4e74f1d5bd47d707783cf2be6f0d715a2f48091094140386bcff330b62"
+}
