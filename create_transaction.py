@@ -53,14 +53,10 @@ def main():
     create_transaction(None, transactions, [None], [(verifying_key_1, 25)], "TRANS")
     prev_block = transactions[0]["NUMBER"]
     create_transaction([signing_key_1], transactions, [(prev_block, 25)], [(verifying_key_2, 25)], "TRANS")
-    # create_transaction(transactions, [("block1", 0)], [("publickey2", 100)], "JOIN")
-    # create_transaction(transactions, {"block3": "output3"}, [("publickey1", 30)], "JOIN")
-    # create_transaction(transactions, {"block4": "output4"}, [("publickey3", 40)], "MERGE")
-    # create_transaction(transactions, {"block5": "output5"}, [("publickey2", 10)], "TRANS")
 
     transactions = json.dumps(transactions)
 
-    transaction_file = open("unverified_pool.json", "w")
+    transaction_file = open("transaction_file.json", "w")
     transaction_file.write(transactions)
 
 
