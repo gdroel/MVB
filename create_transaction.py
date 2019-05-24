@@ -46,13 +46,13 @@ def main():
     verifying_key_1 = signing_key_1.get_verifying_key().to_string().hex()
 
     signing_key_2 = SigningKey.generate()
-    verifying_key_2 = signing_key_1.get_verifying_key().to_string().hex()
+    verifying_key_2 = signing_key_2.get_verifying_key().to_string().hex()
 
 
     transactions = []
-    create_transaction(None, transactions, [None], [(verifying_key_1, 25)], "TRANS")
+    create_transaction(None, transactions, [None], [(verifying_key_1, 10), (verifying_key_2, 15)], "TRANS")
     prev_block = transactions[0]["NUMBER"]
-    create_transaction([signing_key_1], transactions, [(prev_block, 25)], [(verifying_key_2, 25)], "TRANS")
+    create_transaction([signing_key_1], transactions, [(prev_block, 0)], [(verifying_key_2, 25)], "TRANS")
 
     transactions = json.dumps(transactions)
 

@@ -36,9 +36,11 @@ class Node:
             for input_block in self.current_transaction["INPUT"]:
                 self.used_inputs.append(input_block[0])
             print("Valid transaction")
+            return True
 
         else:
-            print("Invalid signature")
+            print("Invalid transaction")
+            return False
         
 
     # Validate that a transaction's sigature is valid
@@ -48,31 +50,36 @@ class Node:
             current_block = self.chain.head
             while current_block is not None:
                 if input_block[0] == current_block.transaction["NUMBER"]:
-                    verifying_key = VerifyingKey.from_string(bytes.fromhex(current_block.transaction["OUTPUT"][0][0]))
+                    verifying_key = VerifyingKey.from_string(bytes.fromhex(current_block.transaction["OUTPUT"][input_block[1]][0]))
                 current_block = current_block.prev
 
-        transaction_content = self.current_transaction["TYPE"]
+        if verifying_key is not None:
+            transaction_content = self.current_transaction["TYPE"]
 
-        for input_block in self.current_transaction["INPUT"]:
-            transaction_content += input_block[0]
-            transaction_content += str(input_block[1])
+            for input_block in self.current_transaction["INPUT"]:
+                transaction_content += input_block[0]
+                transaction_content += str(input_block[1])
 
-        for output_set in self.current_transaction["OUTPUT"]:
-            transaction_content += output_set[0]
-            transaction_content += str(output_set[1])
+            for output_set in self.current_transaction["OUTPUT"]:
+                transaction_content += output_set[0]
+                transaction_content += str(output_set[1])
 
-        for signature in self.current_transaction["SIGNATURE"]:
-            try:
-                verifying_key.verify(bytes.fromhex(signature), transaction_content.encode("utf-8"))
-                return True
-            except BadSignatureError:
-                return False
+            for signature in self.current_transaction["SIGNATURE"]:
+                try:
+                    verifying_key.verify(bytes.fromhex(signature), transaction_content.encode("utf-8"))
+                    return True
+                except BadSignatureError:
+                    print("Invalid signature")
+                    return False
+        else:
+            print("Input does not exist")
+            return False
 
     # Validate that a transaction's inputs have not been previously used
     def validate_input(self):
         for input_block in self.current_transaction["INPUT"]:
             if input_block[0] in self.used_inputs:
-                print("Used input")
+                print("Input used previously")
                 return False
         return True
     
@@ -81,7 +88,11 @@ class Node:
         input_sum = 0
         output_sum = 0
         for input_block in self.current_transaction["INPUT"]:
-            input_sum += input_block[1]
+            current_block = self.chain.head
+            while current_block is not None:
+                if input_block[0] == current_block.transaction["NUMBER"]:
+                    input_sum += current_block.transaction["OUTPUT"][input_block[1]][1]
+                current_block = current_block.prev
 
         for output_block in self.current_transaction["OUTPUT"]:
             output_sum += output_block[1]
@@ -89,6 +100,7 @@ class Node:
         if input_sum == output_sum:
             return True
         else:
+            print("Input does not equal output")
             return False
 
     # Verify the transaction through proof-of-work
@@ -122,5 +134,22 @@ class Node:
         self.current_transaction["PROOF"] = digest
         new_block = Block(self.current_transaction)
         self.chain.add_block(new_block)
-        print("Created new block")
         current_block = self.chain.head
+
+    # Remove an invalid transaction from the network
+    def remove_invalid_transaction(self):
+        with open("unverified_pool.json", "r") as file:
+            data = json.load(file)
+
+        with open("unverified_pool.json", "w") as file:
+            data = data.remove(self.current_transaction)
+            new_pool = json.dumps(data)
+            file.write(new_pool)
+
+    # Start the node
+    def run(self):
+        self.select_transaction()
+        if self.validate_transaction():
+            self.verify_transaction()
+        else:
+            self.remove_invalid_transaction()

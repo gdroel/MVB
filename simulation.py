@@ -10,9 +10,7 @@ def main():
             unverified_pool.write(transactions)
 
     node = Node()
-    node.select_transaction()
-    node.validate_transaction()
-    node.verify_transaction()
+    node.run()
 
 if __name__ == "__main__":
     main()
