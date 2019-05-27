@@ -161,11 +161,3 @@ class Node:
             data = data.remove(self.current_transaction)
             new_pool = json.dumps(data)
             file.write(new_pool)
-
-    # Start the node
-    def run(self):
-        self.select_transaction()
-        if self.validate_transaction():
-            self.verify_transaction()
-        else:
-            self.remove_invalid_transaction()
