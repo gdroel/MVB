@@ -40,6 +40,7 @@ class Node:
 
     def broadcast_transaction(block):
         print("broadcast!")
+        
 
     # Select an unverified transaction at random from pool
     def select_transaction(self):
