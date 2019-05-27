@@ -9,7 +9,7 @@ from block import Block
 class Node:
     def __init__(self):
         self.chain = Blockchain()
-        self.current_transaction = None
+        self.current_transaction = None #JSON
         self.used_inputs = []
         self.initalize_chain()
 
@@ -19,6 +19,27 @@ class Node:
             data = json.load(file)
             self.current_transaction = data[0]
         self.create_block(0, 0)
+
+    # This is the main code for the node
+    def run():
+        #1. Select a random transaction 
+        transaction = self.select_transaction()
+        #2. Validate Transation
+        self.validate_transaction()
+
+        # TODO Add hash pointer to transaction
+        #3. Verify Transaction via POW
+        nonce, digest = self.verify_transaction()
+
+        block = Block(transaction, nonce, digest)
+
+        self.broadcast_block(block)
+        #4. Write to a file
+        # Add the nonce and the final proof of work
+        #
+
+    def broadcast_transaction(block):
+        print("broadcast!")
 
     # Select an unverified transaction at random from pool
     def select_transaction(self):
@@ -106,8 +127,8 @@ class Node:
     # Verify the transaction through proof-of-work
     def verify_transaction(self):
         # for testing purposes only
-        file = open("example_transaction.json")
-        transactionJSON = file.read()
+        # file = open("example_transaction.json")
+        # transactionJSON = self.transaction
 
         # our hashed value neesd to be less than this   
         lessThan = 0x00000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
@@ -115,11 +136,14 @@ class Node:
         # set the digest as the highest possible value so the loop runs at least once
         digest = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
+        # we keep track of the nonce
+        nonce = 0
+
         # keep generating values while it's less than this value
         while(digest > lessThan):
             # generate the nonce
             nonce = random.getrandbits(32)
-            unhashed = transactionJSON + str(nonce)
+            unhashed = transaction + str(nonce)
             sha256 = hashlib.new("sha256")
             sha256.update(unhashed.encode('utf-8'))
 
