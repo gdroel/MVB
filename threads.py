@@ -3,8 +3,7 @@
 import threading
 import time
 
-def flagger_thread(event):
-
+def thread(event):
     for i in range(0,1000):
         if event.is_set():
             print(event.param)
