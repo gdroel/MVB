@@ -17,7 +17,3 @@ Previous: Hash of the most recent transaction in the blockchain
 Nonce: Number that can only be used once
 
 Proof of work: Hash representing that the claimed work has actually been done.
-
-# Questions
-How are public keys published? 
-How do the nodes obtain the public keys used to verify a transaction's signature?
