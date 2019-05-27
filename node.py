@@ -9,7 +9,7 @@ from block import Block
 class Node:
     def __init__(self):
         self.chain = Blockchain()
-        self.current_transaction = None #JSON
+        self.current_transaction = None
         self.used_inputs = []
         self.initalize_chain()
 
@@ -22,23 +22,21 @@ class Node:
 
     # This is the main code for the node
     def run():
-        #1. Select a random transaction 
-        transaction = self.select_transaction()
-        #2. Validate Transation
+        # Select a random transaction 
+        self.select_transaction()
+        # Validate the ransation
         self.validate_transaction()
 
-        # TODO Add hash pointer to transaction
-        #3. Verify Transaction via POW
-        nonce, digest = self.verify_transaction()
+        # Verify Transaction via POW
+        self.verify_transaction()
 
-        block = Block(transaction, nonce, digest)
+        # Broadcast the mined block
+        self.broadcast_transaction(self.chain.head)
 
-        self.broadcast_block(block)
         #4. Write to a file
         # Add the nonce and the final proof of work
-        #
 
-    def broadcast_transaction(block):
+    def broadcast_transaction(self, block):
         print("broadcast!")
         
 
@@ -127,9 +125,6 @@ class Node:
 
     # Verify the transaction through proof-of-work
     def verify_transaction(self):
-        # for testing purposes only
-        # file = open("example_transaction.json")
-        # transactionJSON = self.transaction
 
         # our hashed value neesd to be less than this   
         lessThan = 0x00000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
@@ -144,22 +139,18 @@ class Node:
         while(digest > lessThan):
             # generate the nonce
             nonce = random.getrandbits(32)
-            unhashed = transaction + str(nonce)
+            unhashed = json.dumps(self.current_transaction) + str(nonce)
             sha256 = hashlib.new("sha256")
             sha256.update(unhashed.encode('utf-8'))
 
             # convert digest to int for comparison
             digest = int(sha256.hexdigest(), 16)
-        
         self.create_block(nonce, digest)
 
     # Create a new block from a verified transaction
     def create_block(self, nonce, digest):
-        self.current_transaction["NONCE"] = nonce
-        self.current_transaction["PROOF"] = digest
-        new_block = Block(self.current_transaction)
+        new_block = Block(nonce, digest, self.current_transaction)
         self.chain.add_block(new_block)
-        current_block = self.chain.head
 
     # Remove an invalid transaction from the network
     def remove_invalid_transaction(self):

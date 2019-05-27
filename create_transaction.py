@@ -52,7 +52,7 @@ def main():
     transactions = []
     create_transaction(None, transactions, [None], [(verifying_key_1, 10), (verifying_key_2, 15)], "TRANS")
     prev_block = transactions[0]["NUMBER"]
-    create_transaction([signing_key_1], transactions, [(prev_block, 0)], [(verifying_key_2, 25)], "TRANS")
+    create_transaction([signing_key_1], transactions, [(prev_block, 0)], [(verifying_key_2, 10)], "TRANS")
 
     transactions = json.dumps(transactions)
 
