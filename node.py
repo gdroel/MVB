@@ -1,6 +1,7 @@
 import json
 import hashlib
 import uuid
+import secrets
 import random
 from ecdsa import SigningKey, VerifyingKey, BadSignatureError
 from blockchain import Blockchain
@@ -24,28 +25,25 @@ class Node:
     def run(self):
         # Select a random transaction 
         self.select_transaction()
+        print(self.current_transaction)
         # Validate the ransation
         if self.validate_transaction():
             # Verify Transaction via POW
             self.verify_transaction()
-        # Remove an invalid transaction from the pool
-        else:
-            self.remove_invalid_transaction()
-
-        # Broadcast the mined block
-        self.broadcast_transaction(self.chain.head)
-
-        #4. Write to a file
-        # Add the nonce and the final proof of work
+             # Broadcast the mined block
+            self.broadcast_transaction(self.chain.head)
+        else: # Remove an invalid transaction from the pool
+            self.remove_transaction()
 
     def broadcast_transaction(self, block):
         print("broadcast!")
+        self.remove_transaction()
 
     # Select an unverified transaction at random from pool
     def select_transaction(self):
         with open("unverified_pool.json") as file:
             data = json.load(file)
-            random_index = random.randint(0, len(data) - 1)
+            random_index = secrets.randbelow(len(data))
             self.current_transaction = data[random_index]
 
     # Check that a transaction is valid
@@ -55,7 +53,7 @@ class Node:
         if self.validate_signature() and self.validate_input() and self.validate_coin_amount():
             # Add the transaction's inputs to the used input list
             for input_block in self.current_transaction["INPUT"]:
-                self.used_inputs.append(input_block[0])
+                self.used_inputs.append(input_block)
             print("Valid transaction")
             return True
 
@@ -66,40 +64,40 @@ class Node:
 
     # Validate that a transaction's sigature is valid
     def validate_signature(self):
-        verifying_key = None
         for input_block in self.current_transaction["INPUT"]:
+            verifying_key = None
             current_block = self.chain.head
             while current_block is not None:
                 if input_block[0] == current_block.transaction["NUMBER"]:
                     verifying_key = VerifyingKey.from_string(bytes.fromhex(current_block.transaction["OUTPUT"][input_block[1]][0]))
                 current_block = current_block.prev
 
-        if verifying_key is not None:
-            transaction_content = self.current_transaction["TYPE"]
+            if verifying_key is not None:
+                transaction_content = self.current_transaction["TYPE"]
 
-            for input_block in self.current_transaction["INPUT"]:
-                transaction_content += input_block[0]
-                transaction_content += str(input_block[1])
+                for input_block in self.current_transaction["INPUT"]:
+                    transaction_content += input_block[0]
+                    transaction_content += str(input_block[1])
 
-            for output_set in self.current_transaction["OUTPUT"]:
-                transaction_content += output_set[0]
-                transaction_content += str(output_set[1])
+                for output_set in self.current_transaction["OUTPUT"]:
+                    transaction_content += output_set[0]
+                    transaction_content += str(output_set[1])
 
-            for signature in self.current_transaction["SIGNATURE"]:
-                try:
-                    verifying_key.verify(bytes.fromhex(signature), transaction_content.encode("utf-8"))
-                    return True
-                except BadSignatureError:
-                    print("Invalid signature")
-                    return False
-        else:
-            print("Input does not exist")
-            return False
+                for signature in self.current_transaction["SIGNATURE"]:
+                    try:
+                        verifying_key.verify(bytes.fromhex(signature), transaction_content.encode("utf-8"))
+                        return True
+                    except BadSignatureError:
+                        print("Invalid signature")
+                        return False
+            else:
+                print("Input does not exist")
+                return False
 
     # Validate that a transaction's inputs have not been previously used
     def validate_input(self):
         for input_block in self.current_transaction["INPUT"]:
-            if input_block[0] in self.used_inputs:
+            if input_block in self.used_inputs:
                 print("Input used previously")
                 return False
         return True
@@ -146,6 +144,7 @@ class Node:
 
             # convert digest to int for comparison
             digest = int(sha256.hexdigest(), 16)
+
         self.create_block(nonce, digest)
 
     # Create a new block from a verified transaction
@@ -153,12 +152,24 @@ class Node:
         new_block = Block(nonce, digest, self.current_transaction)
         self.chain.add_block(new_block)
 
-    # Remove an invalid transaction from the network
-    def remove_invalid_transaction(self):
+    # Remove a transaction from the network
+    def remove_transaction(self):
         with open("unverified_pool.json", "r") as file:
             data = json.load(file)
-
         with open("unverified_pool.json", "w") as file:
-            data = data.remove(self.current_transaction)
+            data.remove(self.current_transaction)
             new_pool = json.dumps(data)
             file.write(new_pool)
+        
+    def print_chain(self):
+        blocks = []
+        current_block = self.chain.head
+        while current_block is not None:
+            data = {}
+            data["NONCE"] = current_block.nonce
+            data["POW"] = current_block.proof_of_work
+            data["TRANSACTION"] = current_block.transaction
+            blocks.append(data)
+            current_block = current_block.prev
+        with open("node_1_results.json", "w") as file:
+            file.write(json.dumps(blocks))
