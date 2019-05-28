@@ -85,6 +85,11 @@ def main():
 
     # Valid MERGE transaction, 10 coins + 9 coins -> 3
     create_transaction([signing_key_3], transactions, [(first_transaction, 0), (fifth_transaction, 0)], [(verifying_key_3, 19)], "MERGE")
+    sixth_transaction = transactions[6]["NUMBER"]
+
+    # Invalid MERGE transaction, does not own all coins, 3 coins + 3 coins -> 4
+    create_transaction([signing_key_4], transactions, [(third_transaction, 0), (third_transaction, 1)], [(verifying_key_4, 6)], "MERGE")
+    seventh_transaction = transactions[7]["NUMBER"]
 
     transactions = json.dumps(transactions)
 

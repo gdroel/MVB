@@ -86,13 +86,13 @@ class Node:
                 for signature in self.current_transaction["SIGNATURE"]:
                     try:
                         verifying_key.verify(bytes.fromhex(signature), transaction_content.encode("utf-8"))
-                        return True
                     except BadSignatureError:
                         print("Invalid signature")
                         return False
             else:
                 print("Input does not exist")
                 return False
+        return True
 
     # Validate that a transaction's inputs have not been previously used
     def validate_input(self):
