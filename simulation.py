@@ -2,6 +2,8 @@ from node import Node
 import json
 import secrets
 import time
+import threading
+import queue
 
 def add_transaction(i):
     with open("transaction_file.json", "r") as transaction_file:
@@ -20,7 +22,22 @@ def main():
         with open("unverified_pool.json", "w") as unverified_pool:
             unverified_pool.write(json.dumps([]))
         
-    node = Node()
+    nodes = []
+
+    # create all the nodes
+    for i in range(0, 10):
+        newNode = Node()
+        nodes.append(newNode)
+
+    # create the event
+    event = threading.Event()
+
+    blockQueue = queue.Queue()
+
+    for node in nodes:
+        # create all the threads 
+        threading.Thread(target = node.run, args=[blockQueue]).start()
+
     i = 1
     while True:
         if i < 11:
