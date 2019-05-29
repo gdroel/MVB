@@ -1,49 +1,54 @@
 # This is just me playing around with threads
 import threading
+import queue
 import time
 
-def thread_one(event):
-    for i in range(0,1000):
-        if event.is_set():
-            print("block received in thread one")
-            print(event.param)
-            print("\n")
-            return
-        else:
-            time.sleep(0.05)
+def thread_one(theQueue, event):
+    for i in range(0,50):
+        time.sleep(0.05)
 
-    event.set()
+    print(theQueue.get())
+    theQueue.put("hello2")
 
-def thread_two(event):
-    for i in range(0,8000):
-        if event.is_set():
-            print("block received in thread two")
-            print(event.param)
-            print("\n")
-            return
-        else:
-            time.sleep(0.05)
+def thread_two(theQueue, event):
+    for i in range(0,75):
+        # if event.is_set():
+        #     print("block received in thread two")
+        #     print(event.param)
+        #     print("\n")
+        #     return
+        # else:
+        time.sleep(0.05)
 
-    event.set()
+    print("done with thread two")
+    print(theQueue.get())
+    theQueue.put("hello3")
 
-def thread_three(event):
+
+
+def thread_three(theQueue, event):
     for i in range(0,100):
-        if event.is_set():
-            print("block received in thread three")
-            print(event.param)
-            return
-        else:
-            time.sleep(0.05)
+        # if event.is_set():
+        #     print("block received in thread three")
+        #     print(event.param)
+        #     return
+        # else:
+        time.sleep(0.05)
+    
+    
+    print("done with thread three")
 
-    print("Block sent from thread three")
-    event.param = "Block: \nNonce = 0x00003289383298323\nPrevious Hash = 832489723acd8932"
-    event.set()
+    print(theQueue.get())
+
 
 event = threading.Event()
+theQueue = queue.Queue()
+theQueue.put("hello1")
+
 # create all the threads 
-threading.Thread(target = thread_one, args=[event]).start()
-threading.Thread(target = thread_two, args=[event]).start()
-threading.Thread(target = thread_three, args=[event]).start()
+threading.Thread(target = thread_one, args=[theQueue, event]).start()
+threading.Thread(target = thread_two, args=[theQueue, event]).start()
+threading.Thread(target = thread_three, args=[theQueue, event]).start()
 
 # wait for all threads to exit
 for t in threading.enumerate():

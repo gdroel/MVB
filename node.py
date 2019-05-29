@@ -2,6 +2,7 @@ import json
 import hashlib
 import uuid
 import random
+import time
 from ecdsa import SigningKey, VerifyingKey, BadSignatureError
 from blockchain import Blockchain
 from block import Block
@@ -21,25 +22,45 @@ class Node:
         self.create_block(0, 0)
 
     # This is the main code for the node
-    def run():
+    def run(self, blockQueue):
         # Select a random transaction 
-        self.select_transaction()
-        # Validate the ransation
-        self.validate_transaction()
 
-        # Verify Transaction via POW
-        self.verify_transaction()
+        while(True):
+            self.select_transaction()
+            # Validate the ransation
+            self.validate_transaction()
 
-        # Broadcast the mined block
-        self.broadcast_transaction(self.chain.head)
+            # Verify Transaction via POW
+            verify_result = self.verify_transaction(blockQueue)
+
+            if verify_result == False:
+                # This means that a block was received
+                # event.param stores the block that was received
+                block = blockQueue.get()
+                self.handle_received_block(block)
+            else:
+                # Broadcast the mined block
+                self.broadcast_block(blockQueue)
 
         #4. Write to a file
         # Add the nonce and the final proof of work
 
-    def broadcast_transaction(self, block):
-        print("broadcast!")
-        
+    def handle_received_block(self, block):
+        print("block received")
+        print(block)
+        return
+        # unhashed = json.dumps(self.current_transaction) + str(nonce)
+        # sha256 = hashlib.new("sha256")
+        # sha256.update(unhashed.encode('utf-8'))
 
+    def broadcast_block(self, blockQueue):
+        print("broadcasting block")
+        for i in range(0, 9):
+            blockQueue.put(self.chain.head)     
+            
+        return
+        # print("broadcast!")
+        
     # Select an unverified transaction at random from pool
     def select_transaction(self):
         with open("unverified_pool.json") as file:
@@ -55,11 +76,11 @@ class Node:
             # Add the transaction's inputs to the used input list
             for input_block in self.current_transaction["INPUT"]:
                 self.used_inputs.append(input_block[0])
-            print("Valid transaction")
+            # print("Valid transaction")
             return True
 
         else:
-            print("Invalid transaction")
+            # print("Invalid transaction")
             return False
         
 
@@ -99,7 +120,7 @@ class Node:
     def validate_input(self):
         for input_block in self.current_transaction["INPUT"]:
             if input_block[0] in self.used_inputs:
-                print("Input used previously")
+                # print("Input used previously")
                 return False
         return True
     
@@ -124,7 +145,8 @@ class Node:
             return False
 
     # Verify the transaction through proof-of-work
-    def verify_transaction(self):
+    # Returns True if it mined block, false otherwise
+    def verify_transaction(self, blockQueue):
 
         # our hashed value neesd to be less than this   
         lessThan = 0x00000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
@@ -137,15 +159,23 @@ class Node:
 
         # keep generating values while it's less than this value
         while(digest > lessThan):
-            # generate the nonce
-            nonce = random.getrandbits(32)
-            unhashed = json.dumps(self.current_transaction) + str(nonce)
-            sha256 = hashlib.new("sha256")
-            sha256.update(unhashed.encode('utf-8'))
+            # if there's nothing in the block queue, then we keep looking 
+            if blockQueue.empty():
+                # generate the nonce
+                nonce = random.getrandbits(32)
+                unhashed = json.dumps(self.current_transaction) + str(nonce)
+                sha256 = hashlib.new("sha256")
+                sha256.update(unhashed.encode('utf-8'))
 
-            # convert digest to int for comparison
-            digest = int(sha256.hexdigest(), 16)
+                # convert digest to int for comparison
+                digest = int(sha256.hexdigest(), 16)
+            else:
+                return False
+
+        print("block found on a thread")
         self.create_block(nonce, digest)
+
+        return True
 
     # Create a new block from a verified transaction
     def create_block(self, nonce, digest):

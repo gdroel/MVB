@@ -1,5 +1,7 @@
 from node import Node
 import json
+import threading
+import queue
 
 def main():
 
@@ -9,8 +11,23 @@ def main():
             transactions = json.dumps(data[1:])
             unverified_pool.write(transactions)
 
-    node = Node()
-    node.run()
+    nodes = []
+
+    # create all the nodes
+    for i in range(0, 10):
+        newNode = Node()
+        nodes.append(newNode)
+
+    # create the event
+    event = threading.Event()
+
+    blockQueue = queue.Queue()
+
+    for node in nodes:
+        # create all the threads 
+        threading.Thread(target = node.run, args=[blockQueue]).start()
+
+
 
 if __name__ == "__main__":
     main()
