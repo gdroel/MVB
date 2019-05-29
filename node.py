@@ -25,7 +25,6 @@ class Node:
     def run(self):
         # Select a random transaction 
         self.select_transaction()
-        print(self.current_transaction)
         # Validate the ransation
         if self.validate_transaction():
             # Verify Transaction via POW
@@ -64,7 +63,18 @@ class Node:
 
     # Validate that a transaction's sigature is valid
     def validate_signature(self):
+        transaction_content = self.current_transaction["TYPE"]
+
         for input_block in self.current_transaction["INPUT"]:
+            transaction_content += input_block[0]
+            transaction_content += str(input_block[1])
+
+        for output_set in self.current_transaction["OUTPUT"]:
+            transaction_content += output_set[0]
+            transaction_content += str(output_set[1])
+
+        for i in range(len(self.current_transaction["SIGNATURE"])):
+            input_block = self.current_transaction["INPUT"][i]
             verifying_key = None
             current_block = self.chain.head
             while current_block is not None:
@@ -73,22 +83,13 @@ class Node:
                 current_block = current_block.prev
 
             if verifying_key is not None:
-                transaction_content = self.current_transaction["TYPE"]
-
-                for input_block in self.current_transaction["INPUT"]:
-                    transaction_content += input_block[0]
-                    transaction_content += str(input_block[1])
-
-                for output_set in self.current_transaction["OUTPUT"]:
-                    transaction_content += output_set[0]
-                    transaction_content += str(output_set[1])
-
-                for signature in self.current_transaction["SIGNATURE"]:
-                    try:
-                        verifying_key.verify(bytes.fromhex(signature), transaction_content.encode("utf-8"))
-                    except BadSignatureError:
-                        print("Invalid signature")
-                        return False
+                signature = self.current_transaction["SIGNATURE"][i]
+                try:
+                    verifying_key.verify(bytes.fromhex(signature), transaction_content.encode("utf-8"))
+                    transaction_content += signature
+                except BadSignatureError:
+                    print("Invalid signature")
+                    return False
             else:
                 print("Input does not exist")
                 return False

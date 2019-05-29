@@ -22,16 +22,15 @@ def create_transaction(signing_keys, transactions, input_set, output_set, type):
             test_transaction["INPUT"].append(None)
     
     for output_pair in output_set:
-        print(output_pair)
         test_transaction["OUTPUT"].append((output_pair))
         number_plaintext += output_pair[0]
         number_plaintext += str(output_pair[1])
 
     if signing_keys is not None:
-        for key in signing_keys:
-                signature = key.sign(number_plaintext.encode('utf-8')).hex()
-                test_transaction["SIGNATURE"].append(signature)
-                number_plaintext += str(signature)
+        for i in range(len(input_set)):
+            signature = signing_keys[i].sign(number_plaintext.encode('utf-8')).hex()
+            test_transaction["SIGNATURE"].append(signature)
+            number_plaintext += str(signature)
     else:
         test_transaction["SIGNATURE"].append(None)
 
@@ -59,7 +58,7 @@ def main():
 
     transactions = []
 
-    # Genesis block transaction
+    # Genesis block transaction, 15 coins -> 1 and 10 coins -> 2
     create_transaction(None, transactions, [None], [(verifying_key_1, 15), (verifying_key_2, 10)], "TRANS")
     genesis_transaction = transactions[0]["NUMBER"]
 
@@ -84,12 +83,24 @@ def main():
     fifth_transaction = transactions[5]["NUMBER"]
 
     # Valid MERGE transaction, 10 coins + 9 coins -> 3
-    create_transaction([signing_key_3], transactions, [(first_transaction, 0), (fifth_transaction, 0)], [(verifying_key_3, 19)], "MERGE")
+    create_transaction([signing_key_3, signing_key_3], transactions, [(first_transaction, 0), (fifth_transaction, 0)], [(verifying_key_3, 19)], "MERGE")
     sixth_transaction = transactions[6]["NUMBER"]
 
     # Invalid MERGE transaction, does not own all coins, 3 coins + 3 coins -> 4
-    create_transaction([signing_key_4], transactions, [(third_transaction, 0), (third_transaction, 1)], [(verifying_key_4, 6)], "MERGE")
+    create_transaction([signing_key_4, signing_key_4], transactions, [(third_transaction, 0), (third_transaction, 1)], [(verifying_key_4, 6)], "MERGE")
     seventh_transaction = transactions[7]["NUMBER"]
+
+    # Valid TRANS transaction, 10 coins from 3 -> 4, 9 coins from 3 -> 5
+    create_transaction([signing_key_3], transactions, [(sixth_transaction, 0)], [(verifying_key_4, 10), (verifying_key_5, 9)], "TRANS")
+    eighth_transaction = transactions[8]["NUMBER"]
+
+    # Valid TRANS transaction, 3 coins from 4 -> 1, 10 coins from 4 -> 4
+    create_transaction([signing_key_4, signing_key_4], transactions, [(eighth_transaction, 0), (third_transaction, 0)], [(verifying_key_1, 3), (verifying_key_4, 10)], "TRANS")
+    ninth_transaction = transactions[9]["NUMBER"]
+
+    # Valid JOIN transaction, 1 coin from 1 -> 2, 3 coins from 4 -> 2
+    create_transaction([signing_key_1, signing_key_4], transactions, [(ninth_transaction, 0), (ninth_transaction, 1)], [(verifying_key_2, 4), (verifying_key_1, 2), (verifying_key_4, 7)], "JOIN")
+    tenth_transaction = transactions[10]["NUMBER"]
 
     transactions = json.dumps(transactions)
 
