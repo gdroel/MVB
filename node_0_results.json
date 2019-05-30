@@ -1,1 +1,123 @@
-[{"NONCE": 441122004, "POW": 44957787893380123012337394297918353333194187871553702591269360613877895, "TRANSACTION": {"TYPE": "TRANS", "INPUT": [["f336ee2272e47d6b74578f04f54b642640acbc508170e3aded5356289bb5e8a7", 0]], "OUTPUT": [["e3f81353892af5d5fa46a34f4ccab7b2236476ecb56903a78fd719d37ce5be6b0e22c166042ab242a2f14cc76b7b489b", 10], ["9da47ef84cc99c3734b70239358e003dd5472f4d31aeefa0e9905b19e1bad1f3dd8a11aa951fed46a4bd6ed27d3100f1", 5]], "SIGNATURE": ["3519dfd0e71beec913647af7c3f634e1092810d3f23e2bb9c2bb56755f7dcb398058e7e0cccd7085e88c568e083bcd90"], "NUMBER": "2072a542e3080492d750dd7258ec32995ac5ce1c3776d71e7a8aa3ea1485e132"}}, {"NONCE": 0, "POW": 0, "TRANSACTION": {"TYPE": "TRANS", "INPUT": [null], "OUTPUT": [["9da47ef84cc99c3734b70239358e003dd5472f4d31aeefa0e9905b19e1bad1f3dd8a11aa951fed46a4bd6ed27d3100f1", 15], ["7f62c6f19b1697233ec82509f0a7548b81042776cc2c241d263209e7934e5e5b5a027aab58d4be21989a203f2ce84ea0", 10]], "SIGNATURE": [null], "NUMBER": "f336ee2272e47d6b74578f04f54b642640acbc508170e3aded5356289bb5e8a7"}}]
+[
+  {
+    "NONCE": 2703122716,
+    "POW": 23493211718999894343774957789979354222545304374773124836503490113366708,
+    "TRANSACTION": {
+      "TYPE": "MERGE",
+      "INPUT": [
+        ["2072a542e3080492d750dd7258ec32995ac5ce1c3776d71e7a8aa3ea1485e132", 0],
+        ["c10a25b69ca9ceadb4f7fd3603c5e2e8c6dd0d041851dc60f7d7add68a4d2106", 0]
+      ],
+      "OUTPUT": [
+        [
+          "e3f81353892af5d5fa46a34f4ccab7b2236476ecb56903a78fd719d37ce5be6b0e22c166042ab242a2f14cc76b7b489b",
+          19
+        ]
+      ],
+      "SIGNATURE": [
+        "8932d258ecde8f6641abf806177cac94f8cd9897e0f20d60f5c908496d77186b413868e2409b194e57e569e3639254d4",
+        "bd9f84033532ac0703d6c21df7736a95f1f719dbccf637024a4e2024c301207c626dc7885aed82add3975c8b7b09800b"
+      ],
+      "NUMBER":
+        "ad14daa22b0089c1f7f3c0640b6b0ecae109325c48e8259e903ffae347b233ae"
+    }
+  },
+  {
+    "NONCE": 2450975036,
+    "POW": 7146377768506181480396304626948374481760902418498478479914710586121470,
+    "TRANSACTION": {
+      "TYPE": "JOIN",
+      "INPUT": [
+        ["2072a542e3080492d750dd7258ec32995ac5ce1c3776d71e7a8aa3ea1485e132", 1],
+        ["02da2eeaa093bc7d3aaa8930b8d4b8dfb842410888682fbbab995d679a2c47ed", 2]
+      ],
+      "OUTPUT": [
+        [
+          "e3f81353892af5d5fa46a34f4ccab7b2236476ecb56903a78fd719d37ce5be6b0e22c166042ab242a2f14cc76b7b489b",
+          9
+        ]
+      ],
+      "SIGNATURE": [
+        "4eadefa109c45fafed21d41df9f5be22a0fd5439056106cecc652ac994da3ddd04a141193641fad7974e8d07dfdc3850",
+        "bcc0874e9936e562306a1585229417b69dcb2e418c6b512b847d1ba585443e9c8f1de0c6f6e73efeca6019d13d05799c"
+      ],
+      "NUMBER":
+        "c10a25b69ca9ceadb4f7fd3603c5e2e8c6dd0d041851dc60f7d7add68a4d2106"
+    }
+  },
+  {
+    "NONCE": 1211613241,
+    "POW": 37630232690549632388115217569165724999691978450969196514609417647413915,
+    "TRANSACTION": {
+      "TYPE": "TRANS",
+      "INPUT": [
+        ["f336ee2272e47d6b74578f04f54b642640acbc508170e3aded5356289bb5e8a7", 1]
+      ],
+      "OUTPUT": [
+        [
+          "935148d21a00645931548b6d2a6f9dc143739572bcf780e850842421d2047d20e0646bf9ae5cec04e9916dd52ddd70a0",
+          3
+        ],
+        [
+          "f29af49664125d30fc7d24482131bc35b7c2ec47aad33cda7ae39a7cdfe36126fd5be51da9319fe2187a8ca07a07e3a5",
+          3
+        ],
+        [
+          "7f62c6f19b1697233ec82509f0a7548b81042776cc2c241d263209e7934e5e5b5a027aab58d4be21989a203f2ce84ea0",
+          4
+        ]
+      ],
+      "SIGNATURE": [
+        "d72e8d8c25068553878ace7e03daba7ec5b45a83b3a8cf07e2b0d592a7308c2f4b061e83e337ab6d0b424cb4c8c99542"
+      ],
+      "NUMBER":
+        "02da2eeaa093bc7d3aaa8930b8d4b8dfb842410888682fbbab995d679a2c47ed"
+    }
+  },
+  {
+    "NONCE": 4175321776,
+    "POW": 66410425709303925440039020971961877036861967082890499595945612181069168,
+    "TRANSACTION": {
+      "TYPE": "TRANS",
+      "INPUT": [
+        ["f336ee2272e47d6b74578f04f54b642640acbc508170e3aded5356289bb5e8a7", 0]
+      ],
+      "OUTPUT": [
+        [
+          "e3f81353892af5d5fa46a34f4ccab7b2236476ecb56903a78fd719d37ce5be6b0e22c166042ab242a2f14cc76b7b489b",
+          10
+        ],
+        [
+          "9da47ef84cc99c3734b70239358e003dd5472f4d31aeefa0e9905b19e1bad1f3dd8a11aa951fed46a4bd6ed27d3100f1",
+          5
+        ]
+      ],
+      "SIGNATURE": [
+        "3519dfd0e71beec913647af7c3f634e1092810d3f23e2bb9c2bb56755f7dcb398058e7e0cccd7085e88c568e083bcd90"
+      ],
+      "NUMBER":
+        "2072a542e3080492d750dd7258ec32995ac5ce1c3776d71e7a8aa3ea1485e132"
+    }
+  },
+  {
+    "NONCE": 0,
+    "POW": 0,
+    "TRANSACTION": {
+      "TYPE": "TRANS",
+      "INPUT": [null],
+      "OUTPUT": [
+        [
+          "9da47ef84cc99c3734b70239358e003dd5472f4d31aeefa0e9905b19e1bad1f3dd8a11aa951fed46a4bd6ed27d3100f1",
+          15
+        ],
+        [
+          "7f62c6f19b1697233ec82509f0a7548b81042776cc2c241d263209e7934e5e5b5a027aab58d4be21989a203f2ce84ea0",
+          10
+        ]
+      ],
+      "SIGNATURE": [null],
+      "NUMBER":
+        "f336ee2272e47d6b74578f04f54b642640acbc508170e3aded5356289bb5e8a7"
+    }
+  }
+]

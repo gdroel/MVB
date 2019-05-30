@@ -12,12 +12,13 @@ import threading
 lock = threading.Lock()
 
 class Node:
-	def __init__(self, id):
+	def __init__(self, id, is_done):
 		self.chain = Blockchain()
 		self.current_transaction = None
 		self.used_inputs = []
 		self.initalize_chain()
 		self.id = id
+		self.is_done = is_done
 
 	# Adds the Genesis Block as the first block in the chain
 	def initalize_chain(self):
@@ -26,57 +27,39 @@ class Node:
 			self.current_transaction = data[0]
 		self.create_block(0, 0)
 
-	def run(self, blockQueue, transaction_pool):
-		while(True):
-			print("test")
-			if not blockQueue.empty:
-				item = blockQueue.get()
-				print(item)
-				if item == "Done":
-					print("Done")
-					self.print_chain()
-					print("node exit")
-					break
-				else:
-					blockQueue.put(item)
+	def run(self, transaction_pool, blockQueue):
+		while(not self.is_done):
+			print("testing")
 			if self.select_transaction(transaction_pool):
-				print("Found")
-				# print(self.current_transaction)
-				# Validate the ransation
+				print(self.current_transaction)
+				# Validate the transaction
 				if self.validate_transaction():
 					# Verify Transaction via POW
 					verify_result = self.verify_transaction(blockQueue)
 
 					if verify_result == False:
-						# This means that a block was received
-						# event.param stores the block that was received
+						# A block was received
 						block = blockQueue.get()
-						self.handle_received_block(block)
+						self.handle_received_block(transaction_pool, block)
 					else:
 						# Broadcast the mined block
-						self.broadcast_block(blockQueue)
+						self.broadcast_block(transaction_pool, blockQueue)
 				else: # Remove an invalid transaction from the pool
-					self.remove_transaction()
+					self.remove_transaction(transaction_pool, self.current_transaction)
+		self.print_chain()
 
-	def handle_received_block(self, block):
+	def handle_received_block(self, transaction_pool, block):
 		print("block received")
-		print(block)
-		return
-		# unhashed = json.dumps(self.current_transaction) + str(nonce)
-		# sha256 = hashlib.new("sha256")
-		# sha256.update(unhashed.encode('utf-8'))
+		self.chain.add_block(block)
 
-	def broadcast_block(self, blockQueue):
+	def broadcast_block(self, transaction_pool, blockQueue):
 		print("broadcasting block")
 		for i in range(0, 1):
 			blockQueue.put(self.chain.head)   
 		self.print_chain()  
 			
-		self.remove_transaction()
+		self.remove_transaction(transaction_pool, self.current_transaction)
 			
-		return
-		# print("broadcast!")
-		
 	# Select an unverified transaction at random from pool
 	def select_transaction(self, transaction_pool):
 		if len(transaction_pool) > 0:
@@ -87,15 +70,6 @@ class Node:
 		else:
 			return False
 
-		# with open("unverified_pool.json") as file:
-		# 	try:
-		# 		data = json.load(file)
-		# 		random_index = secrets.randbelow(len(data))
-		# 		self.current_transaction = data[random_index]
-		# 		return True
-		# 	except ValueError:
-		# 		return False
-			
 	# Check that a transaction is valid
 	def validate_transaction(self):
 		input_blocks = []
@@ -210,13 +184,10 @@ class Node:
 		self.chain.add_block(new_block)
 
 	# Remove a transaction from the network
-	def remove_transaction(self):
-		with open("unverified_pool.json", "r") as file:
-			data = json.load(file)
-		with open("unverified_pool.json", "w") as file:
-			data.remove(self.current_transaction)
-			new_pool = json.dumps(data)
-			file.write(new_pool)
+	def remove_transaction(self, transaction_pool, transaction):
+		with lock:
+			if transaction in transaction_pool:
+				transaction_pool.remove(transaction)
 		
 	def print_chain(self):
 		blocks = []
