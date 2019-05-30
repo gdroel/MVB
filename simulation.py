@@ -10,7 +10,7 @@ def main():
     nodes = []
 
     # create all the nodes
-    for i in range(0, 2):
+    for i in range(0, 1):
         newNode = Node(i, False)
         nodes.append(newNode)
 
@@ -28,14 +28,14 @@ def main():
         if i < 11:
             transaction = data[i]
             transaction_pool.append(transaction)
-            # time.sleep(secrets.randbelow(200) / 100)
+            time.sleep(secrets.randbelow(200) / 100)
         if len(transaction_pool) == 0:
             is_done = True
             for node in nodes:
                 node.is_done = True
             # transaction_pool.append("Done")
             print("Sim exit")
-        time.sleep(10)
+        # time.sleep(10)
         i += 1
 
 if __name__ == "__main__":

@@ -29,11 +29,12 @@ class Node:
 
 	def run(self, transaction_pool, blockQueue):
 		while(not self.is_done):
-			print("testing")
+			if len(transaction_pool) == 0:
+				time.sleep(5)
 			if self.select_transaction(transaction_pool):
 				print(self.current_transaction)
 				# Validate the transaction
-				if self.validate_transaction():
+				if self.validate_transaction(transaction_pool):
 					# Verify Transaction via POW
 					verify_result = self.verify_transaction(blockQueue)
 
@@ -44,8 +45,6 @@ class Node:
 					else:
 						# Broadcast the mined block
 						self.broadcast_block(transaction_pool, blockQueue)
-				else: # Remove an invalid transaction from the pool
-					self.remove_transaction(transaction_pool, self.current_transaction)
 		self.print_chain()
 
 	def handle_received_block(self, transaction_pool, block):
@@ -54,8 +53,8 @@ class Node:
 
 	def broadcast_block(self, transaction_pool, blockQueue):
 		print("broadcasting block")
-		for i in range(0, 1):
-			blockQueue.put(self.chain.head)   
+		# for i in range(0, 1):
+			# blockQueue.put(self.chain.head)   
 		self.print_chain()  
 			
 		self.remove_transaction(transaction_pool, self.current_transaction)
@@ -71,10 +70,10 @@ class Node:
 			return False
 
 	# Check that a transaction is valid
-	def validate_transaction(self):
+	def validate_transaction(self, transaction_pool):
 		input_blocks = []
 		# Signature must be valid, inputs must not have been used before, coins in must equal coins out
-		if self.validate_signature() and self.validate_input() and self.validate_coin_amount():
+		if self.validate_signature(transaction_pool) and self.validate_input(transaction_pool) and self.validate_coin_amount(transaction_pool):
 			# Add the transaction's inputs to the used input list
 			for input_block in self.current_transaction["INPUT"]:
 				self.used_inputs.append(input_block)
@@ -84,7 +83,7 @@ class Node:
 		
 
 	# Validate that a transaction's sigature is valid
-	def validate_signature(self):
+	def validate_signature(self, transaction_pool):
 		transaction_content = self.current_transaction["TYPE"]
 
 		for input_block in self.current_transaction["INPUT"]:
@@ -111,6 +110,7 @@ class Node:
 					transaction_content += signature
 				except BadSignatureError:
 					print("Invalid signature")
+					self.remove_transaction(transaction_pool, self.current_transaction)
 					return False
 			else:
 				print("Input does not exist")
@@ -118,15 +118,16 @@ class Node:
 		return True
 
 	# Validate that a transaction's inputs have not been previously used
-	def validate_input(self):
+	def validate_input(self, transaction_pool):
 		for input_block in self.current_transaction["INPUT"]:
 			if input_block in self.used_inputs:
 				print("Input used previously")
+				self.remove_transaction(transaction_pool, self.current_transaction)
 				return False
 		return True
 	
 	# Validate that the total amount of coins in a transaction's inputs equals the total amount of coins in its outputs
-	def validate_coin_amount(self):
+	def validate_coin_amount(self, transaction_pool):
 		input_sum = 0
 		output_sum = 0
 		for input_block in self.current_transaction["INPUT"]:
@@ -143,6 +144,7 @@ class Node:
 			return True
 		else:
 			print("Input does not equal output")
+			self.remove_transaction(transaction_pool, self.current_transaction)
 			return False
 
 	# Verify the transaction through proof-of-work
