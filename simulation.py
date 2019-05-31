@@ -4,21 +4,22 @@ import secrets
 import time
 import threading
 import queue
+from MainQueue import MainQueue
 
 
 def main():
     nodes = []
 
     # create all the nodes
-    for i in range(0, 2):
+    for i in range(0, 10):
         newNode = Node(i, False)
         nodes.append(newNode)
 
-    mainQueue = queue.Queue()
+    main_queue = MainQueue(nodes)
     transaction_pool = []
     for node in nodes:
         # create all the threads 
-        threading.Thread(target = node.run, args=([transaction_pool, mainQueue])).start()
+        threading.Thread(target = node.run, args=([transaction_pool, main_queue])).start()
 
     i = 1
     with open("transaction_file.json", "r") as transaction_file:
@@ -33,9 +34,7 @@ def main():
             is_done = True
             for node in nodes:
                 node.is_done = True
-            # transaction_pool.append("Done")
             print("Sim exit")
-        # time.sleep(10)
         i += 1
 
 if __name__ == "__main__":

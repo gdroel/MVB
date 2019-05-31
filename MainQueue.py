@@ -9,6 +9,7 @@ class MainQueue(Queue):
         self.nodes = nodes
 
     def put(self, item):
+        print("pushed block")
         for node in self.nodes:
             node.blockQueue.put(item, True, None)
 

@@ -29,12 +29,14 @@ class Node:
 			self.current_transaction = data[0]
 		self.create_block(0, 0)
 
-	def run(self, transaction_pool, mainQueue):
+	def run(self, transaction_pool, main_queue):
 		while(not self.is_done):
+			if not self.blockQueue.empty():
+				self.handle_received_block(transaction_pool)
 			if len(transaction_pool) == 0:
 				time.sleep(5)
 			if self.select_transaction(transaction_pool):
-				print(self.current_transaction)
+				# print(self.current_transaction)
 				# Validate the transaction
 				if self.validate_transaction(transaction_pool, self.current_transaction):
 					# Verify Transaction via POW
@@ -42,25 +44,29 @@ class Node:
 
 					if verify_result == False:
 						# A block was received
-						self.handle_received_block()
+						self.handle_received_block(transaction_pool)
 					else:
 						# Broadcast the mined block
-						self.broadcast_block(transaction_pool, mainQueue)
+						self.broadcast_block(transaction_pool, main_queue)
 		self.print_chain()
 
 	def handle_received_block(self, transaction_pool):
 		while not self.blockQueue.empty():
-			print("block received")
-			block = self.blockQueue.get()
-			if self.validate_block(block, transaction_pool):
-				print("block valid")
-				self.chain.add_block(block)
-			print("block invalid")
+				print("block received by ", self.id)
+				block = self.blockQueue.get()
+				if block.transaction != self.chain.head.transaction:
+					print(block.transaction)
+					if self.validate_block(block, transaction_pool):
+						print("block valid")
+						self.chain.add_block(block)
+						self.print_chain()
+					else:
+						print("block invalid")
 
-	def broadcast_block(self, transaction_pool, mainQueue):
-		print("broadcasting block")
-		for i in range(0, 1):
-			mainQueue.put(self.chain.head)   
+	def broadcast_block(self, transaction_pool, main_queue):
+		print("broadcasting block from ", self.id)
+		print(self.chain.head.transaction)
+		main_queue.put(self.chain.head)   
 		self.print_chain()  
 			
 		self.remove_transaction(transaction_pool, self.current_transaction)
@@ -89,7 +95,7 @@ class Node:
 		sha256.update(unhashed.encode('utf-8'))
 		# convert digest to int for comparison
 		digest = int(sha256.hexdigest(), 16)
-		if digest == block.digest and self.validate_transaction(transaction_pool, block.transaction):
+		if digest == block.proof_of_work and self.validate_transaction(transaction_pool, block.transaction):
 			return True
 		else:
 			return False
@@ -125,7 +131,6 @@ class Node:
 					self.remove_transaction(transaction_pool, transaction)
 					return False
 			else:
-				print(input_block[0])
 				print("Input does not exist")
 				return False
 		return True
@@ -191,7 +196,6 @@ class Node:
 		# Add the transaction's inputs to the used input list
 		for input_block in self.current_transaction["INPUT"]:
 			self.used_inputs.append(input_block)
-		print("block found on a thread")
 		self.create_block(nonce, digest)
 
 		return True
