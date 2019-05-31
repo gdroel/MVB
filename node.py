@@ -15,6 +15,7 @@ lock = threading.Lock()
 class Node:
 	def __init__(self, id, is_done):
 		self.chain = Blockchain()
+		self.fork_chain = None
 		self.current_transaction = None
 		self.used_inputs = []
 		self.id = id
@@ -31,10 +32,13 @@ class Node:
 
 	def run(self, transaction_pool, main_queue):
 		while(not self.is_done):
-			if not self.blockQueue.empty():
-				self.handle_received_block(transaction_pool)
+
 			if len(transaction_pool) == 0:
 				time.sleep(5)
+
+			if not self.blockQueue.empty():
+				self.handle_received_block(transaction_pool)
+		
 			if self.select_transaction(transaction_pool):
 				# print(self.current_transaction)
 				# Validate the transaction
@@ -52,8 +56,26 @@ class Node:
 
 	def handle_received_block(self, transaction_pool):
 		while not self.blockQueue.empty():
+
+			block = self.blockQueue.get()
+
+			if fork_chain != None:
+				print("fork chain not none")
+				if block.prev == self.fork_chain.head:
+					self.chain = self.fork_chain
+
+			elif block.prev.nonce != self.chain.head.nonce:
+				print("THERE IS A FORK")
+				#then there's a fork
+				fork_chain = copy.deepcopy(self.chain)
+				curr_item = self.chain.head
+				while curr_item != block.prev:
+					curr_item = curr_item.prev
+
+				fork_chain.head = curr_item
+				fork_chain.add_block(block)
+
 				print("block received by ", self.id)
-				block = self.blockQueue.get()
 				if block.transaction != self.chain.head.transaction:
 					print(block.transaction)
 					if self.validate_block(block, transaction_pool):
@@ -66,6 +88,9 @@ class Node:
 	def broadcast_block(self, transaction_pool, main_queue):
 		print("broadcasting block from ", self.id)
 		print(self.chain.head.transaction)
+
+		# artifically add latency
+		time.sleep(10)
 		main_queue.put(self.chain.head)   
 		self.print_chain()  
 			
@@ -131,7 +156,6 @@ class Node:
 					self.remove_transaction(transaction_pool, transaction)
 					return False
 			else:
-				print("Input does not exist")
 				return False
 		return True
 

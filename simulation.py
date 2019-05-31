@@ -6,7 +6,6 @@ import threading
 import queue
 from MainQueue import MainQueue
 
-
 def main():
     nodes = []
 
