@@ -10,15 +10,15 @@ def main():
     nodes = []
 
     # create all the nodes
-    for i in range(0, 1):
+    for i in range(0, 2):
         newNode = Node(i, False)
         nodes.append(newNode)
 
-    blockQueue = queue.Queue()
+    mainQueue = queue.Queue()
     transaction_pool = []
     for node in nodes:
         # create all the threads 
-        threading.Thread(target = node.run, args=([transaction_pool, blockQueue])).start()
+        threading.Thread(target = node.run, args=([transaction_pool, mainQueue])).start()
 
     i = 1
     with open("transaction_file.json", "r") as transaction_file:

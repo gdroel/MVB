@@ -8,6 +8,7 @@ from ecdsa import SigningKey, VerifyingKey, BadSignatureError
 from blockchain import Blockchain
 from block import Block
 import threading
+import queue
 
 lock = threading.Lock()
 
@@ -16,9 +17,10 @@ class Node:
 		self.chain = Blockchain()
 		self.current_transaction = None
 		self.used_inputs = []
-		self.initalize_chain()
 		self.id = id
 		self.is_done = is_done
+		self.blockQueue = queue.Queue()
+		self.initalize_chain()
 
 	# Adds the Genesis Block as the first block in the chain
 	def initalize_chain(self):
@@ -27,34 +29,38 @@ class Node:
 			self.current_transaction = data[0]
 		self.create_block(0, 0)
 
-	def run(self, transaction_pool, blockQueue):
+	def run(self, transaction_pool, mainQueue):
 		while(not self.is_done):
 			if len(transaction_pool) == 0:
 				time.sleep(5)
 			if self.select_transaction(transaction_pool):
 				print(self.current_transaction)
 				# Validate the transaction
-				if self.validate_transaction(transaction_pool):
+				if self.validate_transaction(transaction_pool, self.current_transaction):
 					# Verify Transaction via POW
-					verify_result = self.verify_transaction(blockQueue)
+					verify_result = self.verify_transaction()
 
 					if verify_result == False:
 						# A block was received
-						block = blockQueue.get()
-						self.handle_received_block(transaction_pool, block)
+						self.handle_received_block()
 					else:
 						# Broadcast the mined block
-						self.broadcast_block(transaction_pool, blockQueue)
+						self.broadcast_block(transaction_pool, mainQueue)
 		self.print_chain()
 
-	def handle_received_block(self, transaction_pool, block):
-		print("block received")
-		self.chain.add_block(block)
+	def handle_received_block(self, transaction_pool):
+		while not self.blockQueue.empty():
+			print("block received")
+			block = self.blockQueue.get()
+			if self.validate_block(block, transaction_pool):
+				print("block valid")
+				self.chain.add_block(block)
+			print("block invalid")
 
-	def broadcast_block(self, transaction_pool, blockQueue):
+	def broadcast_block(self, transaction_pool, mainQueue):
 		print("broadcasting block")
-		# for i in range(0, 1):
-			# blockQueue.put(self.chain.head)   
+		for i in range(0, 1):
+			mainQueue.put(self.chain.head)   
 		self.print_chain()  
 			
 		self.remove_transaction(transaction_pool, self.current_transaction)
@@ -70,32 +76,38 @@ class Node:
 			return False
 
 	# Check that a transaction is valid
-	def validate_transaction(self, transaction_pool):
-		input_blocks = []
+	def validate_transaction(self, transaction_pool, transaction):
 		# Signature must be valid, inputs must not have been used before, coins in must equal coins out
-		if self.validate_signature(transaction_pool) and self.validate_input(transaction_pool) and self.validate_coin_amount(transaction_pool):
-			# Add the transaction's inputs to the used input list
-			for input_block in self.current_transaction["INPUT"]:
-				self.used_inputs.append(input_block)
-				return True
+		if self.validate_signature(transaction_pool, transaction) and self.validate_input(transaction_pool, transaction) and self.validate_coin_amount(transaction_pool, transaction):
+			return True
 		else:
 			return False
-		
+
+	def validate_block(self, block, transaction_pool):
+		unhashed = json.dumps(block.transaction) + str(block.nonce)
+		sha256 = hashlib.new("sha256")
+		sha256.update(unhashed.encode('utf-8'))
+		# convert digest to int for comparison
+		digest = int(sha256.hexdigest(), 16)
+		if digest == block.digest and self.validate_transaction(transaction_pool, block.transaction):
+			return True
+		else:
+			return False
 
 	# Validate that a transaction's sigature is valid
-	def validate_signature(self, transaction_pool):
-		transaction_content = self.current_transaction["TYPE"]
+	def validate_signature(self, transaction_pool, transaction):
+		transaction_content = transaction["TYPE"]
 
-		for input_block in self.current_transaction["INPUT"]:
+		for input_block in transaction["INPUT"]:
 			transaction_content += input_block[0]
 			transaction_content += str(input_block[1])
 
-		for output_set in self.current_transaction["OUTPUT"]:
+		for output_set in transaction["OUTPUT"]:
 			transaction_content += output_set[0]
 			transaction_content += str(output_set[1])
 
-		for i in range(len(self.current_transaction["SIGNATURE"])):
-			input_block = self.current_transaction["INPUT"][i]
+		for i in range(len(transaction["SIGNATURE"])):
+			input_block = transaction["INPUT"][i]
 			verifying_key = None
 			current_block = self.chain.head
 			while current_block is not None:
@@ -104,22 +116,23 @@ class Node:
 				current_block = current_block.prev
 
 			if verifying_key is not None:
-				signature = self.current_transaction["SIGNATURE"][i]
+				signature = transaction["SIGNATURE"][i]
 				try:
 					verifying_key.verify(bytes.fromhex(signature), transaction_content.encode("utf-8"))
 					transaction_content += signature
 				except BadSignatureError:
 					print("Invalid signature")
-					self.remove_transaction(transaction_pool, self.current_transaction)
+					self.remove_transaction(transaction_pool, transaction)
 					return False
 			else:
+				print(input_block[0])
 				print("Input does not exist")
 				return False
 		return True
 
 	# Validate that a transaction's inputs have not been previously used
-	def validate_input(self, transaction_pool):
-		for input_block in self.current_transaction["INPUT"]:
+	def validate_input(self, transaction_pool, transaction):
+		for input_block in transaction["INPUT"]:
 			if input_block in self.used_inputs:
 				print("Input used previously")
 				self.remove_transaction(transaction_pool, self.current_transaction)
@@ -127,17 +140,17 @@ class Node:
 		return True
 	
 	# Validate that the total amount of coins in a transaction's inputs equals the total amount of coins in its outputs
-	def validate_coin_amount(self, transaction_pool):
+	def validate_coin_amount(self, transaction_pool, transaction):
 		input_sum = 0
 		output_sum = 0
-		for input_block in self.current_transaction["INPUT"]:
+		for input_block in transaction["INPUT"]:
 			current_block = self.chain.head
 			while current_block is not None:
 				if input_block[0] == current_block.transaction["NUMBER"]:
 					input_sum += current_block.transaction["OUTPUT"][input_block[1]][1]
 				current_block = current_block.prev
 
-		for output_block in self.current_transaction["OUTPUT"]:
+		for output_block in transaction["OUTPUT"]:
 			output_sum += output_block[1]
 
 		if input_sum == output_sum:
@@ -149,7 +162,7 @@ class Node:
 
 	# Verify the transaction through proof-of-work
 	# Returns True if it mined block, false otherwise
-	def verify_transaction(self, blockQueue):
+	def verify_transaction(self):
 
 		# our hashed value neesd to be less than this   
 		lessThan = 0x00000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
@@ -162,8 +175,8 @@ class Node:
 
 		# keep generating values while it's less than this value
 		while(digest > lessThan):
-			# if there's nothing in the block queue, then we keep looking 
-			if blockQueue.empty():
+			# if there's nothing in our block queue, then we keep looking 
+			if self.blockQueue.empty():
 				# generate the nonce
 				nonce = random.getrandbits(32)
 				unhashed = json.dumps(self.current_transaction) + str(nonce)
@@ -174,7 +187,10 @@ class Node:
 				digest = int(sha256.hexdigest(), 16)
 			else:
 				return False
-
+		
+		# Add the transaction's inputs to the used input list
+		for input_block in self.current_transaction["INPUT"]:
+			self.used_inputs.append(input_block)
 		print("block found on a thread")
 		self.create_block(nonce, digest)
 
