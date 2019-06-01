@@ -1,2 +1,13 @@
 *.pyc
 .vscode/
+node_0_results.json 
+node_1_results.json
+node_2_results.json
+node_3_results.json
+node_4_results.json
+node_5_results.json
+node_6_results.json
+node_7_results.json
+node_8_results.json
+node_9_results.json
+transaction_file.json

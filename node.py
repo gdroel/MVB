@@ -1,11 +1,9 @@
 import json
 import hashlib
-import uuid
 import secrets
 import random
 import time
-from ecdsa import SigningKey, VerifyingKey, BadSignatureError
-from blockchain import Blockchain
+from ecdsa import VerifyingKey, BadSignatureError
 from block import Block
 import threading
 import queue
@@ -14,7 +12,7 @@ lock = threading.Lock()
 
 class Node:
 	def __init__(self, id, is_done):
-		self.chain = Blockchain()
+		self.chain = []
 		self.fork_chain = None
 		self.current_transaction = None
 		self.used_inputs = []
@@ -58,40 +56,57 @@ class Node:
 		while not self.blockQueue.empty():
 
 			block = self.blockQueue.get()
-
-			if fork_chain != None:
-				print("fork chain not none")
-				if block.prev == self.fork_chain.head:
-					self.chain = self.fork_chain
-
-			elif block.prev.nonce != self.chain.head.nonce:
-				print("THERE IS A FORK")
-				#then there's a fork
-				fork_chain = copy.deepcopy(self.chain)
-				curr_item = self.chain.head
-				while curr_item != block.prev:
-					curr_item = curr_item.prev
-
-				fork_chain.head = curr_item
-				fork_chain.add_block(block)
-
+			print("node ", self.id, " head has nonce ", self.chain.head.nonce)
+			if block.proof_of_work != self.chain[-1].proof_of_work
 				print("block received by ", self.id)
-				if block.transaction != self.chain.head.transaction:
-					print(block.transaction)
-					if self.validate_block(block, transaction_pool):
-						print("block valid")
-						self.chain.add_block(block)
-						self.print_chain()
+				if self.validate_block(block, transaction_pool):
+					print("block valid")
+					if self.fork_chain != None:
+						print("FORK EXISTS")
+						print("new block prev has nonce ", block.prev.nonce, " for node ", self.id)
+						if block.prev == self.fork_chain[-1].prev
+							print("CHOOSE FORK")
+							last_common_block = self.chain[-1].prev
+							current_block = self.chain[-1]
+							for i in range(len(self.chain) - 1, -1, -1)
+								if current_block.transaction["NUMBER"] == last_common_block.transaction["NUMBER"]:
+									break
+								else:
+									self.add_transaction_to_pool(self, transaction_pool, current_block)
+							self.chain = self.fork_chain
+							self.fork_chain = None
+						else:
+							print("DON'T CHOOSE FORK")
+							self.chain.append(block)
+							self.fork_chain = None
+							self.print_chain()
+
+					# Check for a fork
+					elif block.prev is not None and block.prev != self.chain[-1].prev
+						print("THERE IS A FORK for node ", self.id)
+						#then there's a fork
+						self.fork_chain = self.chain[:]
+						for i in range(len(self.chain) - 1, -1, -1):
+							if self.chain[i].proof_of_work == block.prev:
+								self.fork_chain = self.chain[:i]
+								break
+						
+						self.fork_chain.append(block)
+
 					else:
-						print("block invalid")
+						print("adding to chain for node", self.id)
+						self.chain.append(block)
+						self.print_chain()
+				else:
+					print("block invalid")
 
 	def broadcast_block(self, transaction_pool, main_queue):
 		print("broadcasting block from ", self.id)
 		print(self.chain.head.transaction)
 
 		# artifically add latency
-		time.sleep(10)
-		main_queue.put(self.chain.head)   
+		time.sleep(5)
+		main_queue.put(self.chain[-1])   
 		self.print_chain()  
 			
 		self.remove_transaction(transaction_pool, self.current_transaction)
@@ -192,7 +207,7 @@ class Node:
 	# Verify the transaction through proof-of-work
 	# Returns True if it mined block, false otherwise
 	def verify_transaction(self):
-
+		print("node ", self.id, " is mining")
 		# our hashed value neesd to be less than this   
 		lessThan = 0x00000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
@@ -227,14 +242,21 @@ class Node:
 	# Create a new block from a verified transaction
 	def create_block(self, nonce, digest):
 		new_block = Block(nonce, digest, self.current_transaction)
-		self.chain.add_block(new_block)
+		self.chain.append(new_block)
 
 	# Remove a transaction from the network
 	def remove_transaction(self, transaction_pool, transaction):
 		with lock:
 			if transaction in transaction_pool:
 				transaction_pool.remove(transaction)
+
+	# Add a transaction back to the pool
+	self.add_transaction_to_pool(self, transaction_pool, block):
+		with lock:
+			if transaction not in transaction_pool:
+				transaction_pool.append(block.transaction)
 		
+	# Write the complete chain to a file
 	def print_chain(self):
 		blocks = []
 		current_block = self.chain.head
