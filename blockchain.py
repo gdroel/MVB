@@ -6,3 +6,6 @@ class Blockchain:
         block.prev = self.head
         self.head = block
 
+    def delete_node(self):
+        temp = self.head.prev
+        self.head = self.head.prev

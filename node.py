@@ -14,7 +14,7 @@ lock = threading.Lock()
 
 class Node:
 	def __init__(self, id, is_done):
-		self.chain = Blockchain()
+		self.chain = []
 		self.fork_chain = None
 		self.current_transaction = None
 		self.used_inputs = []
@@ -40,7 +40,6 @@ class Node:
 				self.handle_received_block(transaction_pool)
 		
 			if self.select_transaction(transaction_pool):
-				# print(self.current_transaction)
 				# Validate the transaction
 				if self.validate_transaction(transaction_pool, self.current_transaction):
 					# Verify Transaction via POW
@@ -55,43 +54,20 @@ class Node:
 		self.print_chain()
 
 	def handle_received_block(self, transaction_pool):
+		print("handle received block")
 		while not self.blockQueue.empty():
-
 			block = self.blockQueue.get()
+			self.chain.append(block)
+			self.print_chain()
 
-			if fork_chain != None:
-				print("fork chain not none")
-				if block.prev == self.fork_chain.head:
-					self.chain = self.fork_chain
-
-			elif block.prev.nonce != self.chain.head.nonce:
-				print("THERE IS A FORK")
-				#then there's a fork
-				fork_chain = copy.deepcopy(self.chain)
-				curr_item = self.chain.head
-				while curr_item != block.prev:
-					curr_item = curr_item.prev
-
-				fork_chain.head = curr_item
-				fork_chain.add_block(block)
-
-				print("block received by ", self.id)
-				if block.transaction != self.chain.head.transaction:
-					print(block.transaction)
-					if self.validate_block(block, transaction_pool):
-						print("block valid")
-						self.chain.add_block(block)
-						self.print_chain()
-					else:
-						print("block invalid")
 
 	def broadcast_block(self, transaction_pool, main_queue):
 		print("broadcasting block from ", self.id)
-		print(self.chain.head.transaction)
+		print(self.chain[-1])
 
 		# artifically add latency
 		time.sleep(10)
-		main_queue.put(self.chain.head)   
+		main_queue.put(self.chain[-1])   
 		self.print_chain()  
 			
 		self.remove_transaction(transaction_pool, self.current_transaction)
@@ -140,11 +116,13 @@ class Node:
 		for i in range(len(transaction["SIGNATURE"])):
 			input_block = transaction["INPUT"][i]
 			verifying_key = None
-			current_block = self.chain.head
-			while current_block is not None:
+
+			# if len(self.chain) == 1:
+			# 	verifying_key = VerifyingKey.from_string(bytes.fromhex(self.chain[0].transaction["OUTPUT"][input_block[1]][0]))
+			for k in range(len(self.chain) - 1, -1, -1):
+				current_block = self.chain[k]
 				if input_block[0] == current_block.transaction["NUMBER"]:
 					verifying_key = VerifyingKey.from_string(bytes.fromhex(current_block.transaction["OUTPUT"][input_block[1]][0]))
-				current_block = current_block.prev
 
 			if verifying_key is not None:
 				signature = transaction["SIGNATURE"][i]
@@ -157,6 +135,8 @@ class Node:
 					return False
 			else:
 				return False
+
+		print("signature validated")
 		return True
 
 	# Validate that a transaction's inputs have not been previously used
@@ -173,11 +153,10 @@ class Node:
 		input_sum = 0
 		output_sum = 0
 		for input_block in transaction["INPUT"]:
-			current_block = self.chain.head
-			while current_block is not None:
+			for i in range(len(self.chain) - 1, -1, -1):
+				current_block = self.chain[i]
 				if input_block[0] == current_block.transaction["NUMBER"]:
 					input_sum += current_block.transaction["OUTPUT"][input_block[1]][1]
-				current_block = current_block.prev
 
 		for output_block in transaction["OUTPUT"]:
 			output_sum += output_block[1]
@@ -227,7 +206,12 @@ class Node:
 	# Create a new block from a verified transaction
 	def create_block(self, nonce, digest):
 		new_block = Block(nonce, digest, self.current_transaction)
-		self.chain.add_block(new_block)
+		# set the previous to the end of the current chain
+
+		if len(self.chain) > 0:
+			new_block.prev = self.chain[-1].proof_of_work
+
+		self.chain.append(new_block)
 
 	# Remove a transaction from the network
 	def remove_transaction(self, transaction_pool, transaction):
@@ -237,13 +221,14 @@ class Node:
 		
 	def print_chain(self):
 		blocks = []
-		current_block = self.chain.head
-		while current_block is not None:
+
+		for i in range(len(self.chain) - 1, -1, -1):
+			current_block = self.chain[i]
 			data = {}
 			data["NONCE"] = current_block.nonce
 			data["POW"] = current_block.proof_of_work
 			data["TRANSACTION"] = current_block.transaction
 			blocks.append(data)
-			current_block = current_block.prev
+
 		with open("node_"+str(self.id)+"_results.json", "w") as file:
 			file.write(json.dumps(blocks))
