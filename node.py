@@ -37,7 +37,7 @@ class Node:
 
 	def run(self, transaction_pool, main_queue):
 		while(not self.is_done):
-			if len(transaction_pool) == 0:
+			while len(transaction_pool) == 0:
 				print("node ", self.id, " is sleeping")
 				time.sleep(5)
 
