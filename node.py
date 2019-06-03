@@ -7,6 +7,7 @@ from ecdsa import VerifyingKey, BadSignatureError
 from block import Block
 import threading
 import queue
+from ecdsa import SigningKey
 
 lock = threading.Lock()
 
@@ -20,6 +21,10 @@ class Node:
 		self.is_done = is_done
 		self.blockQueue = queue.Queue()
 		self.initalize_chain()
+
+		signing_key = SigningKey.generate()
+		self.verifying_key = signing_key.get_verifying_key().to_string().hex()
+
 
 	# Adds the Genesis Block as the first block in the chain
 	def initalize_chain(self):
@@ -54,20 +59,23 @@ class Node:
 	def handle_received_block(self, transaction_pool):
 		print("handle received block")
 		while not self.blockQueue.empty():
+
+
 			block = self.blockQueue.get()
 			print("node ", self.id, " head has nonce ", self.chain.head.nonce)
-			if block.proof_of_work != self.chain[-1].proof_of_work
+
+			if block.proof_of_work != self.chain[-1].proof_of_work:
 				print("block received by ", self.id)
 				if self.validate_block(block, transaction_pool):
 					print("block valid")
 					if self.fork_chain != None:
 						print("FORK EXISTS")
-						print("new block prev has nonce ", block.prev.nonce, " for node ", self.id)
-						if block.prev == self.fork_chain[-1].prev
+						print("new block prev has nonce ", block.prev, " for node ", self.id)
+						if block.prev == self.fork_chain[-1].prev:
 							print("CHOOSE FORK")
 							last_common_block = self.chain[-1].prev
 							current_block = self.chain[-1]
-							for i in range(len(self.chain) - 1, -1, -1)
+							for i in range(len(self.chain) - 1, -1, -1):
 								if current_block.transaction["NUMBER"] == last_common_block.transaction["NUMBER"]:
 									break
 								else:
@@ -81,7 +89,7 @@ class Node:
 							self.print_chain()
 
 					# Check for a fork
-					elif block.prev is not None and block.prev != self.chain[-1].prev
+					elif block.prev is not None and block.prev != self.chain[-1].prev:
 						print("THERE IS A FORK for node ", self.id)
 						#then there's a fork
 						self.fork_chain = self.chain[:]
@@ -243,7 +251,7 @@ class Node:
 
 	# Create a new block from a verified transaction
 	def create_block(self, nonce, digest):
-		new_block = Block(nonce, digest, self.current_transaction)
+		new_block = Block(nonce, digest, self.verifying_key, self.current_transaction)
 		
 		# set the previous to the end of the current chain
 		if len(self.chain) > 0:
@@ -258,7 +266,7 @@ class Node:
 				transaction_pool.remove(transaction)
 
 	# Add a transaction back to the pool
-	self.add_transaction_to_pool(self, transaction_pool, block):
+	def action_to_pool(self, transaction_pool, block):
 		with lock:
 			if transaction not in transaction_pool:
 				transaction_pool.append(block.transaction)
