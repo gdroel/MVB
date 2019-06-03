@@ -41,7 +41,6 @@ class Node:
 				self.handle_received_block(transaction_pool)
 		
 			if self.select_transaction(transaction_pool):
-				# print("node ", self.id, " selected")
 				# Validate the transaction
 				if self.validate_transaction(transaction_pool, self.current_transaction, self.chain, self.used_inputs):
 					print("node ", self.id, " found a block")
@@ -88,32 +87,32 @@ class Node:
 						for input_block in block.transaction["INPUT"]:
 							self.used_inputs.append(input_block)
 						if len(self.chain) > len(self.fork_chain):
-							for forked_block in fork_chain:
+							for forked_block in self.fork_chain:
 								self.add_transaction_to_pool(transaction_pool, forked_block.transaction)
 							self.fork_chain = []
 							self.fork_used_inputs = []
 							self.print_chain()
 
-				elif self.validate_block(block, transaction_pool, self.chain, self.used_inputs):
-					# Check for a fork
-					if block.prev is not None and block.prev != self.chain[-1].proof_of_work:
-						print("THERE IS A FORK for node ", self.id)
-						for i in range(len(self.chain) - 1, -1, -1):
-							if self.chain[i].proof_of_work == block.prev:
-								self.last_common_block = self.chain[i].proof_of_work
-								self.fork_chain = self.chain[:i]
-								self.fork_used_inputs = self.used_inputs[:i]
-								break
-						self.fork_chain.append(block)
-						for input_block in block.transaction["INPUT"]:
-							self.fork_used_inputs.append(input_block)
+				# Check for a fork
+				elif block.prev is not None and block.prev != self.chain[-1].proof_of_work:
+					print("THERE IS A FORK for node ", self.id, block.transaction)
+					for i in range(len(self.chain) - 1, -1, -1):
+						if self.chain[i].proof_of_work == block.prev:
+							self.last_common_block = self.chain[i].proof_of_work
+							self.fork_chain = self.chain[:i]
+							self.fork_used_inputs = self.used_inputs[:i]
+							break
+					self.fork_chain.append(block)
+					for input_block in block.transaction["INPUT"]:
+						self.fork_used_inputs.append(input_block)
 
-					else:
-						print("NO FORK", self.id)
-						self.chain.append(block)
-						for input_block in block.transaction["INPUT"]:
-							self.used_inputs.append(input_block)
-						self.print_chain()
+				# Check for a valid non-fork block
+				elif self.validate_block(block, transaction_pool, self.chain, self.used_inputs):
+					print("NO FORK", self.id)
+					self.chain.append(block)
+					for input_block in block.transaction["INPUT"]:
+						self.used_inputs.append(input_block)
+					self.print_chain()
 				else:
 					print("block invalid")
 
@@ -125,7 +124,7 @@ class Node:
 		main_queue.put((self.id, self.chain[-1])) 
 		self.print_chain()  
 			
-		self.remove_transaction(transaction_pool, self.current_transaction)
+		self.remove_transaction(transaction_pool, self.current_transaction, "broadcasting")
 			
 	# Select an unverified transaction at random from pool
 	def select_transaction(self, transaction_pool):
@@ -184,7 +183,7 @@ class Node:
 					transaction_content += signature
 				except BadSignatureError:
 					print("Invalid signature")
-					self.remove_transaction(transaction_pool, transaction)
+					self.remove_transaction(transaction_pool, transaction, "Invalid signature")
 					return False
 			else:
 				return False
@@ -195,8 +194,8 @@ class Node:
 	def validate_input(self, transaction_pool, transaction, used_inputs):
 		for input_block in transaction["INPUT"]:
 			if input_block in used_inputs:
-				print("Input used previously")	
-				self.remove_transaction(transaction_pool, self.current_transaction)
+				print("Input used previously ", input_block)	
+				self.remove_transaction(transaction_pool, transaction, "Input used previously")
 				return False
 		return True
 	
@@ -217,7 +216,7 @@ class Node:
 			return True
 		else:
 			print("Input does not equal output")
-			self.remove_transaction(transaction_pool, self.current_transaction)
+			self.remove_transaction(transaction_pool, transaction, "Input does not equal output")
 			return False
 
 	# Verify the transaction through proof-of-work
@@ -266,10 +265,10 @@ class Node:
 		self.chain.append(new_block)
 
 	# Remove a transaction from the network
-	def remove_transaction(self, transaction_pool, transaction):
+	def remove_transaction(self, transaction_pool, transaction, reason):
 		with lock:
 			if transaction in transaction_pool:
-				print("node ", self.id, "is removing transaction", transaction)
+				print("node ", self.id, "is removing because ", reason, transaction)
 				transaction_pool.remove(transaction)
 
 	# Add a transaction back to the pool
