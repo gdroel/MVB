@@ -1,5 +1,6 @@
 *.pyc
 .vscode/
+.DS_Store
 node_0_results.json 
 node_1_results.json
 node_2_results.json
