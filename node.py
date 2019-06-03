@@ -13,6 +13,8 @@ lock = threading.Lock()
 
 class Node:
 	def __init__(self, id, is_done):
+
+		self.mining_reward = 25
 		self.chain = []
 		self.fork_chain = []
 		self.current_transaction = None
@@ -22,10 +24,11 @@ class Node:
 		self.id = id
 		self.is_done = is_done
 		self.blockQueue = queue.Queue()
-		self.initalize_chain()
 
 		signing_key = SigningKey.generate()
 		self.verifying_key = signing_key.get_verifying_key().to_string().hex()
+		 
+		self.initalize_chain()
 
 
 	# Adds the Genesis Block as the first block in the chain
@@ -65,8 +68,6 @@ class Node:
 	def handle_received_block(self, transaction_pool):
 		# with lock:
 		while not self.blockQueue.empty():
-
-
 			block = self.blockQueue.get()
 			if block.proof_of_work != self.chain[-1].proof_of_work:
 				if len(self.fork_chain) != 0:
@@ -75,7 +76,7 @@ class Node:
 					if block.prev == self.fork_chain[-1].proof_of_work and self.validate_block(block, transaction_pool, self.fork_chain, self.fork_used_inputs):
 						print("CHOOSE FORK")
 						self.fork_chain.append(block)
-						for input_block in block.transaction["INPUT"]:
+						for input_block in block.transactions[1]["INPUT"]:
 							self.fork_used_inputs.append(input_block)
 						if len(self.fork_chain) > len(self.chain):
 							for i in range(len(self.chain) - 1, -1, -1):
@@ -92,11 +93,11 @@ class Node:
 					elif block.prev == self.chain[-1].proof_of_work and self.validate_block(block, transaction_pool, self.chain, self.used_inputs):
 						print("DON'T CHOOSE FORK")
 						self.chain.append(block)
-						for input_block in block.transaction["INPUT"]:
+						for input_block in block.transactions[1]["INPUT"]:
 							self.used_inputs.append(input_block)
 						if len(self.chain) > len(self.fork_chain):
 							for forked_block in fork_chain:
-								self.add_transaction_to_pool(transaction_pool, forked_block.transaction)
+								self.add_transaction_to_pool(transaction_pool, forked_block.transactions[1])
 							self.fork_chain = []
 							self.fork_used_inputs = []
 							self.print_chain()
@@ -112,13 +113,13 @@ class Node:
 								self.fork_used_inputs = self.used_inputs[:i]
 								break
 						self.fork_chain.append(block)
-						for input_block in block.transaction["INPUT"]:
+						for input_block in block.transactions[1]["INPUT"]:
 							self.fork_used_inputs.append(input_block)
 
 					else:
 						print("NO FORK", self.id)
 						self.chain.append(block)
-						for input_block in block.transaction["INPUT"]:
+						for input_block in block.transactions[1]["INPUT"]:
 							self.used_inputs.append(input_block)
 						self.print_chain()
 				else:
@@ -128,7 +129,7 @@ class Node:
 		print("broadcasting block from ", self.id)
 
 		# artifically add latency
-		time.sleep(5)
+		# time.sleep(5)
 		main_queue.put((self.id, self.chain[-1])) 
 		self.print_chain()  
 			
@@ -144,6 +145,12 @@ class Node:
 		else:
 			return False
 
+	# validate the coinbase transaction
+	def validate_coinbase_transaction(self, transaction):
+		# if transaction["OUTPUT"][0][1] != self.mining_reward:
+		# 	return False
+		return True
+
 	# Check that a transaction is valid
 	def validate_transaction(self, transaction_pool, transaction, chain, used_inputs):
 		# Signature must be valid, inputs must not have been used before, coins in must equal coins out
@@ -153,12 +160,12 @@ class Node:
 			return False
 
 	def validate_block(self, block, transaction_pool, chain, used_inputs):
-		unhashed = json.dumps(block.transaction) + str(block.nonce)
+		unhashed = json.dumps(block.transactions[1]) + str(block.nonce)
 		sha256 = hashlib.new("sha256")
 		sha256.update(unhashed.encode('utf-8'))
 		# convert digest to int for comparison
 		digest = int(sha256.hexdigest(), 16)
-		if digest == block.proof_of_work and self.validate_transaction(transaction_pool, block.transaction, chain, used_inputs):
+		if digest == block.proof_of_work and self.validate_coinbase_transaction(block.transactions[0]) and self.validate_transaction(transaction_pool, block.transactions[1], chain, used_inputs):
 			return True
 		else:
 			return False
@@ -181,8 +188,8 @@ class Node:
 
 			for k in range(len(chain) - 1, -1, -1):
 				current_block = chain[k]
-				if input_block[0] == current_block.transaction["NUMBER"]:
-					verifying_key = VerifyingKey.from_string(bytes.fromhex(current_block.transaction["OUTPUT"][input_block[1]][0]))
+				if input_block[0] == current_block.transactions[1]["NUMBER"]:
+					verifying_key = VerifyingKey.from_string(bytes.fromhex(current_block.transactions[1]["OUTPUT"][input_block[1]][0]))
 
 			if verifying_key is not None:
 				signature = transaction["SIGNATURE"][i]
@@ -214,8 +221,8 @@ class Node:
 		for input_block in transaction["INPUT"]:
 			for i in range(len(self.chain) - 1, -1, -1):
 				current_block = self.chain[i]
-				if input_block[0] == current_block.transaction["NUMBER"]:
-					input_sum += current_block.transaction["OUTPUT"][input_block[1]][1]
+				if input_block[0] == current_block.transactions[1]["NUMBER"]:
+					input_sum += current_block.transactions[1]["OUTPUT"][input_block[1]][1]
 
 		for output_block in transaction["OUTPUT"]:
 			output_sum += output_block[1]
@@ -283,7 +290,7 @@ class Node:
 	def add_transaction_to_pool(self, transaction_pool, block):
 		with lock:
 			if transaction not in transaction_pool:
-				transaction_pool.append(block.transaction)
+				transaction_pool.append(block.transactions[1])
 		
 	# Write the complete chain to a file
 	def print_chain(self):
@@ -294,7 +301,7 @@ class Node:
 			data = {}
 			data["NONCE"] = current_block.nonce
 			data["POW"] = current_block.proof_of_work
-			data["TRANSACTION"] = current_block.transaction
+			data["TRANSACTION"] = current_block.transactions
 			blocks.append(data)
 
 		with open("node_"+str(self.id)+"_results.json", "w") as file:
