@@ -28,7 +28,7 @@ def main():
         if i < 11:
             transaction = data[i]
             transaction_pool.append(transaction)
-            time.sleep(secrets.randbelow(200) / 100)
+            time.sleep(secrets.randbelow(1000) / 100)
         if len(transaction_pool) == 0:
             is_done = True
             for node in nodes:
