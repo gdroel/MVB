@@ -32,7 +32,7 @@ class Node:
 
 	def run(self, transaction_pool, main_queue):
 		while(not self.is_done):
-			if len(transaction_pool) == 0:
+			while len(transaction_pool) == 0:
 				print("node ", self.id, " is sleeping")
 				time.sleep(5)
 
@@ -62,19 +62,19 @@ class Node:
 			block = self.blockQueue.get()
 			if block.proof_of_work != self.chain[-1].proof_of_work:
 				if len(self.fork_chain) != 0:
-					print("FORK EXISTS")
-					print("Chain is ", self.chain[-1].proof_of_work, " fork is ", self.fork_chain[-1].proof_of_work, " block is ", block.prev)
+					print("FORK EXISTS ", self.id)
+					print("Chain for ", self.id, " is ", self.chain[-1].proof_of_work, " fork is ", self.fork_chain[-1].proof_of_work, " block is ", block.prev)
 					if block.prev == self.fork_chain[-1].proof_of_work and self.validate_block(block, transaction_pool, self.fork_chain, self.fork_used_inputs):
-						print("CHOOSE FORK")
+						print("CHOOSE FORK ", self.id)
 						self.fork_chain.append(block)
 						for input_block in block.transaction["INPUT"]:
 							self.fork_used_inputs.append(input_block)
 						if len(self.fork_chain) > len(self.chain):
-							for i in range(len(self.chain) - 1, -1, -1):
+							for i in range(len(self.chain) - 1, 0, -1):
 								if self.chain[i].proof_of_work == self.last_common_block:
 									break
 								else:
-									self.add_transaction_to_pool(transaction_pool, current_block)
+									self.add_transaction_to_pool(transaction_pool, self.chain[i].transaction)
 							self.chain = self.fork_chain[:]
 							self.used_inputs = self.fork_used_inputs[:]
 							self.fork_chain = []
@@ -82,13 +82,16 @@ class Node:
 							self.print_chain()
 							
 					elif block.prev == self.chain[-1].proof_of_work and self.validate_block(block, transaction_pool, self.chain, self.used_inputs):
-						print("DON'T CHOOSE FORK")
+						print("DON'T CHOOSE FORK ", self.id)
 						self.chain.append(block)
 						for input_block in block.transaction["INPUT"]:
 							self.used_inputs.append(input_block)
 						if len(self.chain) > len(self.fork_chain):
-							for forked_block in self.fork_chain:
-								self.add_transaction_to_pool(transaction_pool, forked_block.transaction)
+							for i in range(len(self.fork_chain) - 1, -1, -1):
+								if self.fork_chain[i].proof_of_work == self.last_common_block:
+									break
+								else:
+									self.add_transaction_to_pool(transaction_pool, self.fork_chain[i].transaction)
 							self.fork_chain = []
 							self.fork_used_inputs = []
 							self.print_chain()
@@ -99,8 +102,8 @@ class Node:
 					for i in range(len(self.chain) - 1, -1, -1):
 						if self.chain[i].proof_of_work == block.prev:
 							self.last_common_block = self.chain[i].proof_of_work
-							self.fork_chain = self.chain[:i]
-							self.fork_used_inputs = self.used_inputs[:i]
+							self.fork_chain = self.chain[:i + 1]
+							self.fork_used_inputs = self.used_inputs[:i + 1]
 							break
 					self.fork_chain.append(block)
 					for input_block in block.transaction["INPUT"]:
@@ -108,7 +111,7 @@ class Node:
 
 				# Check for a valid non-fork block
 				elif self.validate_block(block, transaction_pool, self.chain, self.used_inputs):
-					print("NO FORK", self.id)
+					print("NO FORK ", self.id)
 					self.chain.append(block)
 					for input_block in block.transaction["INPUT"]:
 						self.used_inputs.append(input_block)
@@ -139,7 +142,7 @@ class Node:
 	# Check that a transaction is valid
 	def validate_transaction(self, transaction_pool, transaction, chain, used_inputs):
 		# Signature must be valid, inputs must not have been used before, coins in must equal coins out
-		if self.validate_signature(transaction_pool, transaction, chain) and self.validate_input(transaction_pool, transaction, used_inputs) and self.validate_coin_amount(transaction_pool, transaction):
+		if self.validate_signature(transaction_pool, transaction, chain) and self.validate_input(transaction_pool, transaction, used_inputs) and self.validate_coin_amount(transaction_pool, transaction, chain):
 			return True
 		else:
 			return False
@@ -153,6 +156,7 @@ class Node:
 		if digest == block.proof_of_work and self.validate_transaction(transaction_pool, block.transaction, chain, used_inputs):
 			return True
 		else:
+			print("Failed to validate block, digest ", digest, " pow ", block.proof_of_work)
 			return False
 
 	# Validate that a transaction's sigature is valid
@@ -172,9 +176,8 @@ class Node:
 			verifying_key = None
 
 			for k in range(len(chain) - 1, -1, -1):
-				current_block = chain[k]
-				if input_block[0] == current_block.transaction["NUMBER"]:
-					verifying_key = VerifyingKey.from_string(bytes.fromhex(current_block.transaction["OUTPUT"][input_block[1]][0]))
+				if input_block[0] == chain[k].transaction["NUMBER"]:
+					verifying_key = VerifyingKey.from_string(bytes.fromhex(chain[k].transaction["OUTPUT"][input_block[1]][0]))
 
 			if verifying_key is not None:
 				signature = transaction["SIGNATURE"][i]
@@ -200,14 +203,13 @@ class Node:
 		return True
 	
 	# Validate that the total amount of coins in a transaction's inputs equals the total amount of coins in its outputs
-	def validate_coin_amount(self, transaction_pool, transaction):
+	def validate_coin_amount(self, transaction_pool, transaction, chain):
 		input_sum = 0
 		output_sum = 0
 		for input_block in transaction["INPUT"]:
-			for i in range(len(self.chain) - 1, -1, -1):
-				current_block = self.chain[i]
-				if input_block[0] == current_block.transaction["NUMBER"]:
-					input_sum += current_block.transaction["OUTPUT"][input_block[1]][1]
+			for i in range(len(chain) - 1, -1, -1):
+				if input_block[0] == chain[i].transaction["NUMBER"]:
+					input_sum += chain[i].transaction["OUTPUT"][input_block[1]][1]
 
 		for output_block in transaction["OUTPUT"]:
 			output_sum += output_block[1]
@@ -272,10 +274,10 @@ class Node:
 				transaction_pool.remove(transaction)
 
 	# Add a transaction back to the pool
-	def add_transaction_to_pool(self, transaction_pool, block):
+	def add_transaction_to_pool(self, transaction_pool, transaction):
 		with lock:
 			if transaction not in transaction_pool:
-				transaction_pool.append(block.transaction)
+				transaction_pool.append(transaction)
 		
 	# Write the complete chain to a file
 	def print_chain(self):
