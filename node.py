@@ -24,12 +24,9 @@ class Node:
 		self.id = id
 		self.is_done = is_done
 		self.blockQueue = queue.Queue()
-
 		signing_key = SigningKey.generate()
 		self.verifying_key = signing_key.get_verifying_key().to_string().hex()
-		 
 		self.initalize_chain()
-
 
 	# Adds the Genesis Block as the first block in the chain
 	def initalize_chain(self):
@@ -87,7 +84,6 @@ class Node:
 							self.used_inputs = self.fork_used_inputs[:]
 							self.fork_chain = []
 							self.fork_used_inputs = []
-							self.print_chain()
 							
 					elif block.prev == self.chain[-1].proof_of_work and self.validate_block(block, transaction_pool, self.chain, self.used_inputs):
 						print("DON'T CHOOSE FORK")
@@ -99,11 +95,10 @@ class Node:
 								self.add_transaction_to_pool(transaction_pool, forked_block.transactions[1])
 							self.fork_chain = []
 							self.fork_used_inputs = []
-							self.print_chain()
 
 				# Check for a fork
 				elif block.prev is not None and block.prev != self.chain[-1].proof_of_work:
-					print("THERE IS A FORK for node ", self.id, block.transaction)
+					print("THERE IS A FORK for node ", self.id, block.transactions[1])
 					for i in range(len(self.chain) - 1, -1, -1):
 						if self.chain[i].proof_of_work == block.prev:
 							self.last_common_block = self.chain[i].proof_of_work
@@ -111,7 +106,7 @@ class Node:
 							self.fork_used_inputs = self.used_inputs[:i]
 							break
 					self.fork_chain.append(block)
-					for input_block in block.transaction["INPUT"]:
+					for input_block in block.transactions[1]["INPUT"]:
 						self.fork_used_inputs.append(input_block)
 
 				# Check for a valid non-fork block
@@ -120,7 +115,6 @@ class Node:
 					self.chain.append(block)
 					for input_block in block.transactions[1]["INPUT"]:
 						self.used_inputs.append(input_block)
-					self.print_chain()
 				else:
 					print("block invalid")
 
@@ -130,7 +124,6 @@ class Node:
 		# artifically add latency
 		# time.sleep(5)
 		main_queue.put((self.id, self.chain[-1])) 
-		self.print_chain()  
 			
 		self.remove_transaction(transaction_pool, self.current_transaction, "broadcasting")
 			
@@ -146,8 +139,11 @@ class Node:
 
 	# validate the coinbase transaction
 	def validate_coinbase_transaction(self, transaction):
-		# if transaction["OUTPUT"][0][1] != self.mining_reward:
-		# 	return False
+
+		print("VALIDATE COINBASE TRANSACTION")
+		print(transaction["OUTPUT"][0][1])
+		if transaction["OUTPUT"][0][1] != self.mining_reward:
+			return False
 		return True
 
 	# Check that a transaction is valid
@@ -264,6 +260,7 @@ class Node:
 		# Add the transaction's inputs to the used input list
 		for input_block in self.current_transaction["INPUT"]:
 			self.used_inputs.append(input_block)
+
 		self.create_block(nonce, digest)
 
 		return True
@@ -300,7 +297,8 @@ class Node:
 			data = {}
 			data["NONCE"] = current_block.nonce
 			data["POW"] = current_block.proof_of_work
-			data["TRANSACTION"] = current_block.transactions
+			data["REWARD"] = current_block.transactions[0]
+			data["TRANSACTION"] = current_block.transactions[1]
 			blocks.append(data)
 
 		with open("node_"+str(self.id)+"_results.json", "w") as file:

@@ -7,12 +7,14 @@ class Block:
         self.proof_of_work = proof_of_work
         self.transactions = []
         self.node_verifying_key = node_verifying_key
-        self.add_coinbase_transaction()
+
+        # not the genesis block
+        if nonce != 0:
+            self.add_coinbase_transaction()
+        else:
+            self.transactions.append("")
         self.transactions.append(transaction)
         self.prev = None
 
-        print("NODE TRANSACTIONS")
-        print(self.transactions)
-
     def add_coinbase_transaction(self):
-        create_transaction(None, self.transactions, [None], [(self.node_verifying_key, 30)], "COINBASE")
+        create_transaction(None, self.transactions, [None], [(self.node_verifying_key, 25)], "COINBASE")
