@@ -7,11 +7,14 @@ from ecdsa import VerifyingKey, BadSignatureError
 from block import Block
 import threading
 import queue
+from ecdsa import SigningKey
 
 lock = threading.Lock()
 
 class Node:
 	def __init__(self, id, is_done):
+
+		self.mining_reward = 25
 		self.chain = []
 		self.fork_chain = []
 		self.current_transaction = None
@@ -21,6 +24,8 @@ class Node:
 		self.id = id
 		self.is_done = is_done
 		self.blockQueue = queue.Queue()
+		signing_key = SigningKey.generate()
+		self.verifying_key = signing_key.get_verifying_key().to_string().hex()
 		self.initalize_chain()
 
 	# Adds the Genesis Block as the first block in the chain
@@ -66,42 +71,40 @@ class Node:
 					if block.prev == self.fork_chain[-1].proof_of_work and self.validate_block(block, transaction_pool, self.fork_chain, self.fork_used_inputs):
 						print("CHOOSE FORK ", self.id)
 						self.fork_chain.append(block)
-						for input_block in block.transaction["INPUT"]:
+						for input_block in block.transactions[1]["INPUT"]:
 							self.fork_used_inputs.append(input_block)
 						if len(self.fork_chain) > len(self.chain):
 							for i in range(len(self.chain) - 1, 0, -1):
 								if self.chain[i].proof_of_work == self.last_common_block:
 									break
 								else:
-									self.add_transaction_to_pool(transaction_pool, self.chain[i].transaction)
+									self.add_transaction_to_pool(transaction_pool, self.chain[i].transactions[1])
 							self.chain = self.fork_chain[:]
 							self.used_inputs = self.fork_used_inputs[:]
 							self.fork_chain = []
 							self.fork_used_inputs = []
-							self.print_chain()
 							
 					elif block.prev == self.chain[-1].proof_of_work and self.validate_block(block, transaction_pool, self.chain, self.used_inputs):
 						print("DON'T CHOOSE FORK ", self.id)
 						self.chain.append(block)
-						for input_block in block.transaction["INPUT"]:
+						for input_block in block.transactions[1]["INPUT"]:
 							self.used_inputs.append(input_block)
 						if len(self.chain) > len(self.fork_chain):
 							for i in range(len(self.fork_chain) - 1, -1, -1):
 								if self.fork_chain[i].proof_of_work == self.last_common_block:
 									break
 								else:
-									self.add_transaction_to_pool(transaction_pool, self.fork_chain[i].transaction)
+									self.add_transaction_to_pool(transaction_pool, self.fork_chain[i].transactions[1])
 							self.fork_chain = []
 							self.fork_used_inputs = []
-							self.print_chain()
 
 					else:
-						print("NEW FORK for node ", self.id, block.transaction)
+						print("NEW FORK for node ", self.id, block.transactions[1])
 						for i in range(len(self.fork_chain) - 1, -1, -1):
 							if self.fork_chain[i].proof_of_work == self.last_common_block:
 								break
 							else:
-								self.add_transaction_to_pool(transaction_pool, self.fork_chain[i].transaction)
+								self.add_transaction_to_pool(transaction_pool, self.fork_chain[i].transactions[1])
 
 						for i in range(len(self.chain) - 1, -1, -1):
 							if self.chain[i].proof_of_work == block.prev:
@@ -111,12 +114,12 @@ class Node:
 								self.fork_used_inputs = self.used_inputs[:i + 1]
 								break
 						self.fork_chain.append(block)
-						for input_block in block.transaction["INPUT"]:
+						for input_block in block.transactions[1]["INPUT"]:
 							self.fork_used_inputs.append(input_block)
 
 				# Check for a new fork
 				elif len(self.fork_chain) == 0 and block.prev != self.chain[-1].proof_of_work:
-					print("THERE IS A FORK for node ", self.id, block.transaction)
+					print("THERE IS A FORK for node ", self.id, block.transactions[1])
 					for i in range(len(self.chain) - 1, -1, -1):
 						if self.chain[i].proof_of_work == block.prev:
 							print("FORK node ", self.id, " has prev ", self.chain[i].proof_of_work)
@@ -125,18 +128,18 @@ class Node:
 							self.fork_used_inputs = self.used_inputs[:i + 1]
 							break
 					self.fork_chain.append(block)
-					for input_block in block.transaction["INPUT"]:
+					for input_block in block.transactions[1]["INPUT"]:
 						self.fork_used_inputs.append(input_block)
 
 				# Check for a valid non-fork block
 				elif self.validate_block(block, transaction_pool, self.chain, self.used_inputs):
 					print("NO FORK ", self.id)
 					self.chain.append(block)
-					for input_block in block.transaction["INPUT"]:
+					for input_block in block.transactions[1]["INPUT"]:
 						self.used_inputs.append(input_block)
-					self.print_chain()
 				else:
 					print("block invalid")
+		self.print_chain()
 
 	def broadcast_block(self, transaction_pool, main_queue):
 		print("broadcasting block from ", self.id)
@@ -144,7 +147,6 @@ class Node:
 		# artifically add latency
 		time.sleep(5)
 		main_queue.put((self.id, self.chain[-1])) 
-		self.print_chain()  
 			
 		self.remove_transaction(transaction_pool, self.current_transaction, "broadcasting")
 			
@@ -158,6 +160,15 @@ class Node:
 		else:
 			return False
 
+	# validate the coinbase transaction
+	def validate_coinbase_transaction(self, transaction):
+
+		print("VALIDATE COINBASE TRANSACTION")
+		print(transaction["OUTPUT"][0][1])
+		if transaction["OUTPUT"][0][1] != self.mining_reward:
+			return False
+		return True
+
 	# Check that a transaction is valid
 	def validate_transaction(self, transaction_pool, transaction, chain, used_inputs):
 		# Signature must be valid, inputs must not have been used before, coins in must equal coins out
@@ -168,12 +179,12 @@ class Node:
 
 	def validate_block(self, block, transaction_pool, chain, used_inputs):
 		with lock:
-			unhashed = json.dumps(block.transaction) + str(block.nonce)
+			unhashed = json.dumps(block.transactions[1]) + str(block.nonce)
 			sha256 = hashlib.new("sha256")
 			sha256.update(unhashed.encode('utf-8'))
 			# convert digest to int for comparison
 			digest = int(sha256.hexdigest(), 16)
-			if digest == block.proof_of_work and self.validate_transaction(transaction_pool, block.transaction, chain, used_inputs):
+			if digest == block.proof_of_work and self.validate_transaction(transaction_pool, block.transactions[1], chain, used_inputs):
 				return True
 			else:
 				print("Failed to validate block, digest ", digest, " pow ", block.proof_of_work)
@@ -196,8 +207,8 @@ class Node:
 			verifying_key = None
 
 			for k in range(len(chain) - 1, -1, -1):
-				if input_block[0] == chain[k].transaction["NUMBER"]:
-					verifying_key = VerifyingKey.from_string(bytes.fromhex(chain[k].transaction["OUTPUT"][input_block[1]][0]))
+				if input_block[0] == chain[k].transactions[1]["NUMBER"]:
+					verifying_key = VerifyingKey.from_string(bytes.fromhex(chain[k].transactions[1]["OUTPUT"][input_block[1]][0]))
 
 			if verifying_key is not None:
 				signature = transaction["SIGNATURE"][i]
@@ -228,8 +239,8 @@ class Node:
 		output_sum = 0
 		for input_block in transaction["INPUT"]:
 			for i in range(len(chain) - 1, -1, -1):
-				if input_block[0] == chain[i].transaction["NUMBER"]:
-					input_sum += chain[i].transaction["OUTPUT"][input_block[1]][1]
+				if input_block[0] == chain[i].transactions[1]["NUMBER"]:
+					input_sum += chain[i].transactions[1]["OUTPUT"][input_block[1]][1]
 
 		for output_block in transaction["OUTPUT"]:
 			output_sum += output_block[1]
@@ -272,13 +283,14 @@ class Node:
 		# Add the transaction's inputs to the used input list
 		for input_block in self.current_transaction["INPUT"]:
 			self.used_inputs.append(input_block)
+
 		self.create_block(nonce, digest)
 
 		return True
 
 	# Create a new block from a verified transaction
 	def create_block(self, nonce, digest):
-		new_block = Block(nonce, digest, self.current_transaction)
+		new_block = Block(nonce, digest, self.verifying_key, self.current_transaction)
 		
 		# set the previous to the end of the current chain
 		if len(self.chain) > 0:
@@ -308,7 +320,8 @@ class Node:
 			data = {}
 			data["NONCE"] = current_block.nonce
 			data["POW"] = current_block.proof_of_work
-			data["TRANSACTION"] = current_block.transaction
+			data["REWARD"] = current_block.transactions[0]
+			data["TRANSACTION"] = current_block.transactions[1]
 			blocks.append(data)
 
 		with open("node_"+str(self.id)+"_results.json", "w") as file:
