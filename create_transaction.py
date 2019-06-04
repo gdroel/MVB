@@ -67,7 +67,7 @@ def main():
     first_transaction = transactions[1]["NUMBER"]
 
     # Malicious TRANS transaction, double spend, 10 coins from 1 -> 3 and 5 coins from 1 -> 1
-    create_transaction([signing_key_1], transactions, [(genesis_transaction, 0)], [(verifying_key_3, 10), (verifying_key_1, 5)], "TRANS")
+    create_transaction([signing_key_1], transactions, [(genesis_transaction, 0)], [(verifying_key_2, 10), (verifying_key_1, 5)], "TRANS")
     second_transaction = transactions[2]["NUMBER"]
 
     # Valid TRANS transaction, 3 coins from 2 -> 4, 3 coins from 2 -> 5, 4 coins from 2 -> 2

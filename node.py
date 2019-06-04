@@ -36,11 +36,11 @@ class Node:
 				print("node ", self.id, " is sleeping")
 				time.sleep(5)
 
-			elif not self.blockQueue.empty():
+			if not self.blockQueue.empty():
 				print("node ", self.id, " is handling a block")
 				self.handle_received_block(transaction_pool)
 		
-			elif self.select_transaction(transaction_pool):
+			elif len(transaction_pool) != 0 and self.select_transaction(transaction_pool):
 				# Validate the transaction
 				if self.validate_transaction(transaction_pool, self.current_transaction, self.chain, self.used_inputs):
 					print("node ", self.id, " found a block")
@@ -97,6 +97,12 @@ class Node:
 
 					else:
 						print("NEW FORK for node ", self.id, block.transaction)
+						for i in range(len(self.fork_chain) - 1, -1, -1):
+							if self.fork_chain[i].proof_of_work == self.last_common_block:
+								break
+							else:
+								self.add_transaction_to_pool(transaction_pool, self.fork_chain[i].transaction)
+
 						for i in range(len(self.chain) - 1, -1, -1):
 							if self.chain[i].proof_of_work == block.prev:
 								print("FORK node ", self.id, " has prev ", self.chain[i].proof_of_work)
