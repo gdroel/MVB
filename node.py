@@ -57,7 +57,6 @@ class Node:
 		self.print_chain()
 
 	def handle_received_block(self, transaction_pool):
-		# with lock:
 		while not self.blockQueue.empty():
 			block = self.blockQueue.get()
 			if block.proof_of_work != self.chain[-1].proof_of_work:
@@ -101,6 +100,7 @@ class Node:
 					print("THERE IS A FORK for node ", self.id, block.transaction)
 					for i in range(len(self.chain) - 1, -1, -1):
 						if self.chain[i].proof_of_work == block.prev:
+							print("FORK node ", self.id, " has prev ", self.chain[i].proof_of_work)
 							self.last_common_block = self.chain[i].proof_of_work
 							self.fork_chain = self.chain[:i + 1]
 							self.fork_used_inputs = self.used_inputs[:i + 1]
@@ -148,16 +148,17 @@ class Node:
 			return False
 
 	def validate_block(self, block, transaction_pool, chain, used_inputs):
-		unhashed = json.dumps(block.transaction) + str(block.nonce)
-		sha256 = hashlib.new("sha256")
-		sha256.update(unhashed.encode('utf-8'))
-		# convert digest to int for comparison
-		digest = int(sha256.hexdigest(), 16)
-		if digest == block.proof_of_work and self.validate_transaction(transaction_pool, block.transaction, chain, used_inputs):
-			return True
-		else:
-			print("Failed to validate block, digest ", digest, " pow ", block.proof_of_work)
-			return False
+		with lock:
+			unhashed = json.dumps(block.transaction) + str(block.nonce)
+			sha256 = hashlib.new("sha256")
+			sha256.update(unhashed.encode('utf-8'))
+			# convert digest to int for comparison
+			digest = int(sha256.hexdigest(), 16)
+			if digest == block.proof_of_work and self.validate_transaction(transaction_pool, block.transaction, chain, used_inputs):
+				return True
+			else:
+				print("Failed to validate block, digest ", digest, " pow ", block.proof_of_work)
+				return False
 
 	# Validate that a transaction's sigature is valid
 	def validate_signature(self, transaction_pool, transaction, chain):
