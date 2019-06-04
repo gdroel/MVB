@@ -32,15 +32,15 @@ class Node:
 
 	def run(self, transaction_pool, main_queue):
 		while(not self.is_done):
-			while len(transaction_pool) == 0:
+			if len(transaction_pool) == 0:
 				print("node ", self.id, " is sleeping")
 				time.sleep(5)
 
-			if not self.blockQueue.empty():
+			elif not self.blockQueue.empty():
 				print("node ", self.id, " is handling a block")
 				self.handle_received_block(transaction_pool)
 		
-			if self.select_transaction(transaction_pool):
+			elif self.select_transaction(transaction_pool):
 				# Validate the transaction
 				if self.validate_transaction(transaction_pool, self.current_transaction, self.chain, self.used_inputs):
 					print("node ", self.id, " found a block")
@@ -95,8 +95,21 @@ class Node:
 							self.fork_used_inputs = []
 							self.print_chain()
 
-				# Check for a fork
-				elif block.prev is not None and block.prev != self.chain[-1].proof_of_work:
+					else:
+						print("NEW FORK for node ", self.id, block.transaction)
+						for i in range(len(self.chain) - 1, -1, -1):
+							if self.chain[i].proof_of_work == block.prev:
+								print("FORK node ", self.id, " has prev ", self.chain[i].proof_of_work)
+								self.last_common_block = self.chain[i].proof_of_work
+								self.fork_chain = self.chain[:i + 1]
+								self.fork_used_inputs = self.used_inputs[:i + 1]
+								break
+						self.fork_chain.append(block)
+						for input_block in block.transaction["INPUT"]:
+							self.fork_used_inputs.append(input_block)
+
+				# Check for a new fork
+				elif len(self.fork_chain) == 0 and block.prev != self.chain[-1].proof_of_work:
 					print("THERE IS A FORK for node ", self.id, block.transaction)
 					for i in range(len(self.chain) - 1, -1, -1):
 						if self.chain[i].proof_of_work == block.prev:
